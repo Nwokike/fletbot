@@ -73,8 +73,7 @@ async def main(page: ft.Page):
 
     # ── Navigation Helpers ──────────────────────────────────────────
     def navigate_to(route: str):
-        page.route = route
-        page.update()
+        page.go(route)
 
     def on_login_success():
         navigate_to("/chat")
