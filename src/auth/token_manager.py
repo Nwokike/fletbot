@@ -24,13 +24,13 @@ class TokenManager:
 
     async def save_api_key(self, key: str) -> None:
         """Store the Google AI Studio API key."""
-        await self._page.client_storage.set_async(_API_KEY_SLOT, key)
+        await self._page.shared_preferences.set(_API_KEY_SLOT, key)
         logger.info("API key saved to client storage")
 
     async def get_api_key(self) -> Optional[str]:
         """Retrieve the stored API key, or None if not set."""
         try:
-            return await self._page.client_storage.get_async(_API_KEY_SLOT)
+            return await self._page.shared_preferences.get(_API_KEY_SLOT)
         except Exception:
             return None
 
@@ -42,18 +42,18 @@ class TokenManager:
     async def clear_api_key(self) -> None:
         """Remove the stored API key."""
         try:
-            await self._page.client_storage.remove_async(_API_KEY_SLOT)
+            await self._page.shared_preferences.remove(_API_KEY_SLOT)
         except Exception:
             pass
         logger.info("API key cleared from client storage")
 
     async def save_user_name(self, name: str) -> None:
         """Store a display name for the user."""
-        await self._page.client_storage.set_async(_USER_NAME_SLOT, name)
+        await self._page.shared_preferences.set(_USER_NAME_SLOT, name)
 
     async def get_user_name(self) -> Optional[str]:
         """Retrieve the stored user name."""
         try:
-            return await self._page.client_storage.get_async(_USER_NAME_SLOT)
+            return await self._page.shared_preferences.get(_USER_NAME_SLOT)
         except Exception:
             return None
