@@ -93,7 +93,7 @@ def build_settings_view(
 
     # Clear all conversations
     async def clear_conversations(e):
-        from src.session.manager import SessionManager
+        from session.manager import SessionManager
 
         sm = SessionManager()
         count = sm.clear_all()

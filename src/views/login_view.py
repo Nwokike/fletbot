@@ -64,7 +64,7 @@ def build_login_view(
 
         try:
             # Quick validation — try a minimal API call
-            from src.providers.gemma_provider import ResilientGemmaProvider
+            from providers.gemma_provider import ResilientGemmaProvider
 
             provider = ResilientGemmaProvider(api_key=key)
             is_valid = await provider.validate_api_key()

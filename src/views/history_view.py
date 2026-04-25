@@ -8,7 +8,7 @@ from datetime import datetime
 
 import flet as ft
 
-from src.session.manager import SessionManager
+from session.manager import SessionManager
 
 logger = logging.getLogger(__name__)
 

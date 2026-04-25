@@ -62,8 +62,8 @@ async def main(page: ft.Page):
     page.spacing = 0
 
     # ── Shared State ────────────────────────────────────────────────
-    from src.auth.token_manager import TokenManager
-    from src.session.manager import SessionManager
+    from auth.token_manager import TokenManager
+    from session.manager import SessionManager
 
     token_manager = TokenManager(page)
     session_manager = SessionManager()
@@ -93,7 +93,7 @@ async def main(page: ft.Page):
         page.views.clear()
 
         if route == "/login":
-            from src.views.login_view import build_login_view
+            from views.login_view import build_login_view
 
             view = build_login_view(
                 page=page,
@@ -106,7 +106,7 @@ async def main(page: ft.Page):
             api_key = await token_manager.get_api_key()
             if not api_key:
                 page.views.clear()
-                from src.views.login_view import build_login_view
+                from views.login_view import build_login_view
 
                 view = build_login_view(
                     page=page,
@@ -120,7 +120,7 @@ async def main(page: ft.Page):
 
             # Create or reuse chat view instance
             if chat_view_instance is None or chat_view_instance.api_key != api_key:
-                from src.views.chat_view import ChatView
+                from views.chat_view import ChatView
 
                 chat_view_instance = ChatView(
                     page=page,
@@ -132,7 +132,7 @@ async def main(page: ft.Page):
             page.views.append(chat_view_instance.build_view())
 
         elif route == "/history":
-            from src.views.history_view import build_history_view
+            from views.history_view import build_history_view
 
             def on_select_session(session_id: str):
                 if chat_view_instance:
@@ -151,7 +151,7 @@ async def main(page: ft.Page):
             page.views.append(view)
 
         elif route == "/settings":
-            from src.views.settings_view import build_settings_view
+            from views.settings_view import build_settings_view
 
             view = build_settings_view(
                 page=page,

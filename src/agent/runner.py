@@ -13,12 +13,12 @@ import time
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from src.providers.gemma_provider import (
+from providers.gemma_provider import (
     ChatMessage,
     GenerationResult,
     ResilientGemmaProvider,
 )
-from src.session.manager import Session
+from session.manager import Session
 
 logger = logging.getLogger(__name__)
 

@@ -7,11 +7,11 @@ from typing import Optional
 
 import flet as ft
 
-from src.agent.runner import AgentRunner
-from src.components.input_bar import InputBar
-from src.components.message_bubble import MessageBubble, ThinkingIndicator
-from src.providers.gemma_provider import ResilientGemmaProvider
-from src.session.manager import Session, SessionManager
+from agent.runner import AgentRunner
+from components.input_bar import InputBar
+from components.message_bubble import MessageBubble, ThinkingIndicator
+from providers.gemma_provider import ResilientGemmaProvider
+from session.manager import Session, SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +299,7 @@ class ChatView:
 
         # AdMob banner (mobile only)
         try:
-            from src.ads.manager import AdManager
+            from ads.manager import AdManager
 
             ad_manager = AdManager(self.page)
             banner = ad_manager.create_banner_ad()

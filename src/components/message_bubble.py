@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import flet as ft
 
-from src.components.markdown_renderer import MarkdownRenderer
+from components.markdown_renderer import MarkdownRenderer
 
 
 class MessageBubble(ft.Container):
