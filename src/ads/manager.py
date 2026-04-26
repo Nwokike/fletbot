@@ -14,7 +14,7 @@ import sys
 
 import flet as ft
 
-from theme import tokens
+from src.theme import tokens
 
 logger = logging.getLogger(__name__)
 

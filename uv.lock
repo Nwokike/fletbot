@@ -139,7 +139,6 @@ requires-dist = [
     { name = "flet-secure-storage", specifier = ">=0.84.0" },
     { name = "httpx", specifier = ">=0.28.1" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [

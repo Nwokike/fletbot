@@ -15,7 +15,7 @@ from typing import AsyncGenerator, Optional
 
 import httpx
 
-from providers.base import (
+from src.providers.base import (
     ChatMessage,
     GenerationConfig,
     GenerationResult,

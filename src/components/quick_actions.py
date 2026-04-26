@@ -9,8 +9,8 @@ from typing import Callable
 
 import flet as ft
 
-from theme import tokens
-from theme.styles import chip_button_style
+from src.theme import tokens
+from src.theme.styles import chip_button_style
 
 
 class QuickActionChip(ft.Button):

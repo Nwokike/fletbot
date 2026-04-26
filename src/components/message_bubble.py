@@ -8,10 +8,10 @@ from __future__ import annotations
 import flet as ft
 import base64
 
-from components.markdown_renderer import MarkdownRenderer
-from theme import colors, tokens
-from theme.styles import dark_shadow, primary_shadow
-from providers.base import MediaPart
+from src.components.markdown_renderer import MarkdownRenderer
+from src.theme import colors, tokens
+from src.theme.styles import dark_shadow, primary_shadow
+from src.providers.base import MediaPart
 
 class MessageBubble(ft.Container):
     """A chat message bubble.

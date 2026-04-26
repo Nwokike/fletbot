@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 import flet as ft
 
-from theme import colors, tokens
+from src.theme import colors, tokens
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class InputBar(ft.Container):
             icon_size=tokens.ICON_MD,
         )
 
-        from components.recording_indicator import RecordingIndicator
+        from src.components.recording_indicator import RecordingIndicator
 
         self._normal_input = ft.Row(
             controls=[

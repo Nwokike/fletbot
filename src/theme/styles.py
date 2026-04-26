@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import flet as ft
 
-from theme import colors, tokens
+from src.theme import colors, tokens
 
 
 # ── Glass Card ──────────────────────────────────────────────────────

@@ -7,8 +7,8 @@ from typing import Callable, Optional
 
 import flet as ft
 
-from providers.base import MediaPart
-from theme import tokens, colors
+from src.providers.base import MediaPart
+from src.theme import tokens, colors
 
 class MediaPreviewBar(ft.Container):
     """Bar displaying pending media items."""

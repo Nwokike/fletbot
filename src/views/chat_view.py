@@ -11,19 +11,19 @@ from typing import Optional
 
 import flet as ft
 
-from agent.runner import AgentRunner
-from components.input_bar import InputBar
-from components.message_bubble import MessageBubble, ThinkingIndicator
-from components.quick_actions import QuickActionRow
-from providers.base import MediaPart
-from providers.gemma_provider import ResilientGemmaProvider
-from services.audio import AudioService
-from services.camera import CameraService
-from services.file_picker import FilePickerService
-from services.share import ShareService
-from session.manager import Session, SessionManager
-from theme import colors, tokens
-from theme.styles import brand_gradient_bg, standard_appbar
+from src.agent.runner import AgentRunner
+from src.components.input_bar import InputBar
+from src.components.message_bubble import MessageBubble, ThinkingIndicator
+from src.components.quick_actions import QuickActionRow
+from src.providers.base import MediaPart
+from src.providers.gemma_provider import ResilientGemmaProvider
+from src.services.audio import AudioService
+from src.services.camera import CameraService
+from src.services.file_picker import FilePickerService
+from src.services.share import ShareService
+from src.session.manager import Session, SessionManager
+from src.theme import colors, tokens
+from src.theme.styles import brand_gradient_bg, standard_appbar
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class ChatView:
         self._thinking = ThinkingIndicator()
         self._thinking.visible = False
 
-        from components.media_preview import MediaPreviewBar
+        from src.components.media_preview import MediaPreviewBar
         self._media_preview = MediaPreviewBar(on_remove=self._on_media_remove)
 
         self._input_bar = InputBar(
@@ -293,12 +293,10 @@ class ChatView:
         self.page.run_task(self._capture_camera)
 
     async def _capture_camera(self):
-        from services import PermissionService
-        perm = PermissionService(self.page)
-        if not await perm.request_camera():
-            return
-            
-        from components.camera_viewfinder import CameraViewfinder
+        # Permissions handled by component/browser
+        pass
+        
+        from src.components.camera_viewfinder import CameraViewfinder
         
         def on_capture(data: bytes, mime: str, filename: str):
             if not self._pending_media:
@@ -331,10 +329,8 @@ class ChatView:
                 self._pending_media.append(MediaPart(mime_type=mime, data=data, filename="Voice Note.m4a"))
                 self._update_media_preview()
         else:
-            from services import PermissionService
-            perm = PermissionService(self.page)
-            if not await perm.request_microphone():
-                return
+            # Permissions handled by component/browser
+            pass
             started = await self._audio.start_recording()
             if started:
                 self._input_bar.set_recording(True)
@@ -377,7 +373,7 @@ class ChatView:
         """Insert a banner ad every N messages."""
         if self._message_count_since_ad >= _AD_INTERVAL:
             try:
-                from ads.manager import AdManager
+                from src.ads.manager import AdManager
 
                 ad_manager = AdManager(self.page)
                 banner = ad_manager.create_inline_banner()

@@ -11,9 +11,9 @@ from datetime import datetime
 
 import flet as ft
 
-from session.manager import SessionManager
-from theme import tokens
-from theme.styles import brand_gradient_bg, standard_appbar
+from src.session.manager import SessionManager
+from src.theme import tokens
+from src.theme.styles import brand_gradient_bg, standard_appbar
 
 logger = logging.getLogger(__name__)
 

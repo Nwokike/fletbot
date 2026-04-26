@@ -12,8 +12,8 @@ from typing import Callable, Optional
 
 import flet as ft
 
-from theme import colors, tokens
-import theme.colors as theme_colors
+from src.theme import colors, tokens
+import src.theme.colors as theme_colors
 
 logger = logging.getLogger(__name__)
 

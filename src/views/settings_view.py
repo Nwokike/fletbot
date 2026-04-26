@@ -10,8 +10,8 @@ import logging
 
 import flet as ft
 
-from theme import tokens
-from theme.styles import (
+from src.theme import tokens
+from src.theme.styles import (
     brand_gradient_bg,
     outlined_danger_style,
     section_header,
@@ -52,7 +52,7 @@ def build_settings_view(
 
     # Clear all conversations
     async def clear_conversations(e):
-        from session.manager import SessionManager
+        from src.session.manager import SessionManager
 
         sm = SessionManager()
         count = sm.clear_all()

@@ -11,8 +11,8 @@ from typing import Callable
 
 import flet as ft
 
-from theme import colors, tokens
-from theme.styles import brand_gradient_bg, filled_primary_style, glass_card
+from src.theme import colors, tokens
+from src.theme.styles import brand_gradient_bg, filled_primary_style, glass_card
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def build_login_view(
         page.update()
 
         try:
-            from providers.gemma_provider import ResilientGemmaProvider
+            from src.providers.gemma_provider import ResilientGemmaProvider
 
             provider = ResilientGemmaProvider(api_key=key)
             is_valid = await provider.validate_api_key()

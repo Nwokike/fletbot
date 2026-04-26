@@ -5,7 +5,7 @@ from typing import Callable
 
 import flet as ft
 
-from theme import tokens, colors
+from src.theme import tokens, colors
 
 class RecordingIndicator(ft.Container):
     """Replaces text input while recording. Shows timer and pulsing mic."""

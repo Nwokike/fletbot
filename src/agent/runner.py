@@ -12,10 +12,10 @@ import logging
 import time
 from typing import AsyncGenerator
 
-from agent.context import ContextBuilder
-from providers.base import ChatMessage, GenerationResult, MediaPart
-from providers.gemma_provider import ResilientGemmaProvider
-from session.manager import Session
+from src.agent.context import ContextBuilder
+from src.providers.base import ChatMessage, GenerationResult, MediaPart
+from src.providers.gemma_provider import ResilientGemmaProvider
+from src.session.manager import Session
 
 logger = logging.getLogger(__name__)
 
