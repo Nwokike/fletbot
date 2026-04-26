@@ -19,10 +19,12 @@ from src.theme.styles import (
     standard_appbar,
 )
 
+from src.ads.manager import AdManager
+
 logger = logging.getLogger(__name__)
 
 
-def build_settings_view(
+async def build_settings_view(
     page: ft.Page,
     token_manager,
     on_back: callable,
@@ -69,6 +71,35 @@ def build_settings_view(
         await token_manager.clear_api_key()
         on_logout()
 
+    # Export conversations
+    async def export_conversations(e):
+        from src.session.manager import SessionManager
+        import json
+        import os
+
+        sm = SessionManager()
+        sessions = sm.list_sessions()
+        data = [s.to_dict() for s in sessions]
+        
+        # In a real app, we'd use a file picker to save. 
+        # For now, we'll save to a known location and show a snackbar.
+        export_path = os.path.expanduser("~/fletbot_export.json")
+        try:
+            with open(export_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            page.show_snack_bar(
+                ft.SnackBar(content=ft.Text(f"Exported to {export_path}"))
+            )
+        except Exception as e:
+            page.show_snack_bar(
+                ft.SnackBar(content=ft.Text(f"Export failed: {e}"))
+            )
+        page.update()
+
+    # Masked API Key
+    api_key = await token_manager.get_api_key() or ""
+    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "********"
+
     controls = [
         # Appearance section
         section_header("APPEARANCE"),
@@ -87,7 +118,7 @@ def build_settings_view(
         setting_tile(
             ft.Icons.KEY_ROUNDED,
             "API Key",
-            "Change or remove your Google AI Studio key",
+            f"Current: {masked_key}",
             trailing=ft.Icon(
                 ft.Icons.CHEVRON_RIGHT_ROUNDED,
                 color=ft.Colors.ON_SURFACE_VARIANT,
@@ -108,8 +139,8 @@ def build_settings_view(
         ),
         setting_tile(
             ft.Icons.SPEED_ROUNDED,
-            "Emergency: Gemma 4 4B",
-            "Lightweight fallback when larger models are unavailable",
+            "Emergency: Gemini Flash Lite",
+            "Lightweight fallback when Gemma models are unavailable",
         ),
         setting_tile(
             ft.Icons.OPEN_IN_NEW_ROUNDED,
@@ -122,10 +153,23 @@ def build_settings_view(
         # Data section
         section_header("DATA"),
         setting_tile(
+            ft.Icons.FILE_DOWNLOAD_OUTLINED,
+            "Export Conversations",
+            "Download all chat history as JSON",
+            on_click=export_conversations,
+        ),
+        setting_tile(
             ft.Icons.DELETE_SWEEP_ROUNDED,
             "Clear All Conversations",
             "Permanently delete all chat history",
             on_click=clear_conversations,
+        ),
+        # Ad Placement
+        (
+            ft.Container(
+                content=AdManager(page).create_settings_banner() or ft.Container(),
+                padding=tokens.SPACE_MD,
+            )
         ),
         # About section
         section_header("ABOUT"),

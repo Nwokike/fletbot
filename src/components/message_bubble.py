@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import flet as ft
 import base64
+from datetime import datetime
 
 from src.components.markdown_renderer import MarkdownRenderer
 from src.theme import colors, tokens
@@ -20,9 +21,10 @@ class MessageBubble(ft.Container):
     AI messages: left-aligned, glassmorphic, rendered as markdown.
     """
 
-    def __init__(self, role: str, content: str, on_copy=None, on_share=None, media: list[MediaPart] | None = None, **kwargs):
+    def __init__(self, role: str, content: str, timestamp: str | None = None, on_copy=None, on_share=None, media: list[MediaPart] | None = None, **kwargs):
         self._role = role
         self._content = content
+        self._timestamp = timestamp or datetime.now().strftime("%H:%M")
 
         is_user = role == "user"
 
@@ -88,6 +90,18 @@ class MessageBubble(ft.Container):
         if content:
             bubble_controls.append(display)
 
+        # Bottom row: Timestamp + Actions
+        bottom_row: list[ft.Control] = []
+        
+        # Timestamp
+        bottom_row.append(
+            ft.Text(
+                self._timestamp,
+                size=tokens.FONT_XXS - 2,
+                color=ft.Colors.with_opacity(0.6, ft.Colors.ON_PRIMARY if is_user else ft.Colors.ON_SURFACE_VARIANT),
+            )
+        )
+        
         # Action buttons for AI messages
         action_row: list[ft.Control] = []
         if not is_user and content:
@@ -95,7 +109,7 @@ class MessageBubble(ft.Container):
                 action_row.append(
                     ft.IconButton(
                         icon=ft.Icons.COPY_ROUNDED,
-                        icon_size=tokens.ICON_SM,
+                        icon_size=tokens.ICON_SM - 2,
                         icon_color=ft.Colors.ON_SURFACE_VARIANT,
                         tooltip="Copy",
                         on_click=lambda _: on_copy(content),
@@ -105,21 +119,23 @@ class MessageBubble(ft.Container):
                 action_row.append(
                     ft.IconButton(
                         icon=ft.Icons.SHARE_ROUNDED,
-                        icon_size=tokens.ICON_SM,
+                        icon_size=tokens.ICON_SM - 2,
                         icon_color=ft.Colors.ON_SURFACE_VARIANT,
                         tooltip="Share",
                         on_click=lambda _: on_share(content),
                     )
                 )
 
-        if action_row:
-            bubble_controls.append(
-                ft.Row(
-                    controls=action_row,
-                    spacing=0,
-                    alignment=ft.MainAxisAlignment.END,
-                )
-            )
+        bottom_controls = ft.Row(
+            controls=[
+                bottom_row[0], # Timestamp
+                ft.Row(controls=action_row, spacing=0) if action_row else ft.Container()
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            tight=True,
+        )
+
+        bubble_controls.append(bottom_controls)
 
         bubble_content = ft.Column(
             controls=bubble_controls,
@@ -155,12 +171,18 @@ class MessageBubble(ft.Container):
                 right=0 if is_user else tokens.BUBBLE_INDENT,
                 bottom=tokens.SPACE_SM,
             ),
+            opacity=0,
             animate_opacity=ft.Animation(
                 tokens.ANIMATION_MS, ft.AnimationCurve.EASE_OUT
             ),
             shadow=(primary_shadow() if is_user else dark_shadow()),
+            on_animation_end=None,
             **kwargs,
         )
+
+    def did_mount(self):
+        self.opacity = 1
+        self.update()
 
 
 class ThinkingIndicator(ft.Container):

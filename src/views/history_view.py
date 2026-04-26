@@ -14,6 +14,7 @@ import flet as ft
 from src.session.manager import SessionManager
 from src.theme import tokens
 from src.theme.styles import brand_gradient_bg, standard_appbar
+from src.ads.manager import AdManager
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ def build_history_view(
         if session.message_count == 0:
             continue
 
-        tile = ft.Container(
+        tile_content = ft.Container(
             content=ft.Row(
                 controls=[
                     ft.Container(
@@ -101,12 +102,9 @@ def build_history_view(
                         spacing=tokens.SPACE_XXS,
                         expand=True,
                     ),
-                    ft.IconButton(
-                        icon=ft.Icons.DELETE_OUTLINE_ROUNDED,
-                        icon_size=tokens.ICON_SM,
-                        icon_color=ft.Colors.ERROR,
-                        tooltip="Delete",
-                        on_click=on_delete_session(session.id),
+                    ft.Icon(
+                        ft.Icons.CHEVRON_RIGHT_ROUNDED,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ],
                 spacing=tokens.SPACE_MD,
@@ -119,7 +117,29 @@ def build_history_view(
             ink=True,
             on_click=on_session_tap(session.id),
         )
-        tiles.append(tile)
+
+        dismissible_tile = ft.Dismissible(
+            content=tile_content,
+            background=ft.Container(
+                bgcolor=ft.Colors.ERROR,
+                content=ft.Row(
+                    [ft.Icon(ft.Icons.DELETE_OUTLINE, color=ft.Colors.WHITE)],
+                    alignment=ft.MainAxisAlignment.START,
+                    offset=ft.Offset(0.05, 0),
+                ),
+            ),
+            secondary_background=ft.Container(
+                bgcolor=ft.Colors.ERROR,
+                content=ft.Row(
+                    [ft.Icon(ft.Icons.DELETE_OUTLINE, color=ft.Colors.WHITE)],
+                    alignment=ft.MainAxisAlignment.END,
+                    offset=ft.Offset(-0.05, 0),
+                ),
+            ),
+            on_dismiss=lambda e, sid=session.id: on_delete_session(sid)(e),
+            dismiss_direction=ft.DismissDirection.HORIZONTAL,
+        )
+        tiles.append(dismissible_tile)
 
     # Empty state
     if not tiles:
@@ -150,8 +170,12 @@ def build_history_view(
             expand=True,
         )
     else:
+        # Add ad at the bottom of history
+        ad_manager = AdManager(page)
+        ad = ad_manager.create_inline_banner()
+        
         content = ft.ListView(
-            controls=tiles,
+            controls=tiles + ([ad] if ad else []),
             expand=True,
             spacing=tokens.SPACE_XS,
             padding=ft.Padding.symmetric(

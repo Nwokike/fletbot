@@ -7,6 +7,7 @@ and smart ad placement between messages.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Optional
 
 import flet as ft
@@ -125,6 +126,7 @@ class ChatView:
             bubble = MessageBubble(
                 role=msg.role,
                 content=msg.content,
+                timestamp=datetime.fromtimestamp(msg.timestamp).strftime("%H:%M"),
                 on_copy=self._copy_response,
                 on_share=self._share_response,
             )
@@ -213,6 +215,7 @@ class ChatView:
         user_bubble = MessageBubble(
             role="user", 
             content=text if text else "",
+            timestamp=datetime.now().strftime("%H:%M"),
             media=media_to_send
         )
         self._message_list.controls.append(user_bubble)
@@ -241,6 +244,7 @@ class ChatView:
             self._streaming_bubble = MessageBubble(
                 role="assistant",
                 content="",
+                timestamp=datetime.now().strftime("%H:%M"),
                 on_copy=self._copy_response,
                 on_share=self._share_response,
             )
@@ -261,6 +265,7 @@ class ChatView:
                     self._message_list.controls[idx] = MessageBubble(
                         role="assistant",
                         content=full_response,
+                        timestamp=self._streaming_bubble._timestamp,
                         on_copy=self._copy_response,
                         on_share=self._share_response,
                     )

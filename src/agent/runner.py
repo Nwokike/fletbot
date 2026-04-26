@@ -154,6 +154,10 @@ class AgentRunner:
         user_name: str | None = None,
     ) -> list[ChatMessage]:
         """Prepare message list for the provider."""
+        # Auto-compact history if it gets too long (Consumer "Recap" feature)
+        if len(session.messages) > 12:
+            asyncio.create_task(self._compact_session_if_needed(session))
+
         builder = ContextBuilder(user_name=user_name, memory_store=self.memory)
         system_prompt = builder.build()
         self.provider.system_instruction = system_prompt
@@ -166,6 +170,43 @@ class AgentRunner:
         # Add current message
         messages.append(ChatMessage(role="user", content=text, media=media))
         return messages
+
+    async def _compact_session_if_needed(self, session: Session) -> None:
+        """Summarise old messages if the history is too long.
+        
+        Keeps the active context window small and efficient.
+        """
+        if len(session.messages) <= 12:
+            return
+
+        logger.info("Compacting session %s context window...", session.id)
+        
+        # Take the first 8 messages to summarize
+        to_summarize = session.messages[:8]
+        remaining = session.messages[8:]
+        
+        transcript = []
+        for m in to_summarize:
+            transcript.append(f"{m.role.upper()}: {m.content}")
+
+        prompt = (
+            "Summarize the following part of a conversation into a single concise paragraph "
+            "starting with 'RECAP of previous exchange:'. Focus on key decisions or facts.\n\n"
+            "TRANSCRIPT:\n" + "\n".join(transcript)
+        )
+
+        try:
+            result = await self.provider.generate([ChatMessage(role="user", content=prompt)])
+            recap_content = result.content.strip()
+            
+            # Replace old messages with the recap
+            session.messages = [
+                ChatMessage(role="assistant", content=recap_content)
+            ] + remaining
+            session.save()
+            logger.info("Session %s context window compacted", session.id)
+        except Exception as e:
+            logger.error("Context compaction failed: %s", e)
 
     async def archive_conversation(self, session: Session) -> None:
         """Summarise and archive a session's messages to memory history.

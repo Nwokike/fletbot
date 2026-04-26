@@ -182,7 +182,7 @@ async def main(page: ft.Page):
         elif route == "/settings":
             from src.views.settings_view import build_settings_view
 
-            view = build_settings_view(
+            view = await build_settings_view(
                 page=page,
                 token_manager=token_manager,
                 on_back=lambda: navigate_to("/chat"),

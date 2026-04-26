@@ -1,6 +1,7 @@
 import pytest
+import asyncio
 import flet as ft
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from src.views.login_view import build_login_view
 from src.views.settings_view import build_settings_view
 from src.views.history_view import build_history_view
@@ -13,9 +14,12 @@ def test_login_view_init(mock_page):
     assert isinstance(view, ft.View)
     assert view.route == "/login"
 
-def test_settings_view_init(mock_page):
+@pytest.mark.asyncio
+async def test_settings_view_init(mock_page):
     mock_tm = MagicMock(spec=TokenManager)
-    view = build_settings_view(mock_page, token_manager=mock_tm, on_back=lambda: None, on_logout=lambda: None)
+    mock_tm.get_api_key = AsyncMock(return_value="test_key_12345")
+    
+    view = await build_settings_view(mock_page, token_manager=mock_tm, on_back=lambda: None, on_logout=lambda: None)
     assert isinstance(view, ft.View)
     assert view.route == "/settings"
 

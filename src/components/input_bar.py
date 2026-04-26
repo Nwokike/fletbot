@@ -36,6 +36,13 @@ class InputBar(ft.Container):
         self._on_send = on_send
         self._disabled = disabled
 
+        self._char_counter = ft.Text(
+            "0 / 4000",
+            size=tokens.FONT_XXS,
+            color=ft.Colors.ON_SURFACE_VARIANT,
+            opacity=0.6,
+        )
+
         self._text_field = ft.TextField(
             hint_text="Ask FletBot anything...",
             border_radius=tokens.RADIUS_XXL,
@@ -46,12 +53,15 @@ class InputBar(ft.Container):
             multiline=True,
             shift_enter=True,
             on_submit=self._handle_submit,
+            on_change=self._handle_change,
             expand=True,
             text_size=tokens.FONT_MD,
             content_padding=ft.Padding.symmetric(
                 horizontal=tokens.SPACE_LG, vertical=tokens.SPACE_SM + 2
             ),
             disabled=disabled,
+            max_length=4000,
+            counter_text="", # Hide default counter
         )
 
         self._send_button = ft.IconButton(
@@ -92,16 +102,27 @@ class InputBar(ft.Container):
 
         from src.components.recording_indicator import RecordingIndicator
 
-        self._normal_input = ft.Row(
+        self._normal_input = ft.Column(
             controls=[
-                self._attach_btn,
-                self._camera_btn,
-                self._mic_btn,
-                self._text_field,
-                self._send_button,
+                ft.Row(
+                    controls=[
+                        self._attach_btn,
+                        self._camera_btn,
+                        self._mic_btn,
+                        self._text_field,
+                        self._send_button,
+                    ],
+                    spacing=tokens.SPACE_XS,
+                    vertical_alignment=ft.CrossAxisAlignment.END,
+                ),
+                ft.Row(
+                    controls=[self._char_counter],
+                    alignment=ft.MainAxisAlignment.END,
+                    offset=ft.Offset(0, -0.5),
+                )
             ],
-            spacing=tokens.SPACE_XS,
-            vertical_alignment=ft.CrossAxisAlignment.END,
+            spacing=0,
+            tight=True,
         )
 
         def _handle_stop_recording():
@@ -135,6 +156,12 @@ class InputBar(ft.Container):
             border=ft.Border.all(1, colors.GLASS_BORDER_COLOR),
         )
 
+    def _handle_change(self, e):
+        """Update character counter as user types."""
+        count = len(self._text_field.value or "")
+        self._char_counter.value = f"{count} / 4000"
+        self._char_counter.update()
+
     def _handle_submit(self, e):
         """Handle Enter key press."""
         self._send_current()
@@ -149,7 +176,9 @@ class InputBar(ft.Container):
         if self._on_send:
             self._on_send(text.strip() if text else "")
             self._text_field.value = ""
+            self._char_counter.value = "0 / 4000"
             self._text_field.update()
+            self._char_counter.update()
 
     def set_disabled(self, disabled: bool):
         """Enable or disable the input bar."""

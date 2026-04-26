@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from src.utils.paths import get_sessions_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,8 +95,7 @@ class SessionManager:
 
     def __init__(self, storage_dir: str | Path | None = None):
         if storage_dir is None:
-            # Default to storage/data relative to project root
-            storage_dir = Path(__file__).parent.parent.parent / "storage" / "data"
+            storage_dir = get_sessions_dir()
         self._dir = Path(storage_dir)
         self._dir.mkdir(parents=True, exist_ok=True)
 

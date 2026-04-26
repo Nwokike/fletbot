@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from src.utils.paths import get_memory_dir
+
 logger = logging.getLogger(__name__)
 
 # Hard cap on individual history entries to prevent unbounded growth.
@@ -40,9 +42,7 @@ class MemoryStore:
         max_history_entries: int = DEFAULT_MAX_HISTORY,
     ):
         if storage_dir is None:
-            storage_dir = (
-                Path(__file__).parent.parent.parent / "storage" / "memory"
-            )
+            storage_dir = get_memory_dir()
         self._dir = Path(storage_dir)
         self._dir.mkdir(parents=True, exist_ok=True)
 
