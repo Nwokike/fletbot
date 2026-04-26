@@ -13,7 +13,6 @@ from src.providers.gemma_provider import (
     SECONDARY_MODEL,
     TERTIARY_MODEL,
     ResilientGemmaProvider,
-    _AUDIO_MODALITY_ERROR,
 )
 
 
@@ -75,102 +74,6 @@ class TestFallbackBehaviour:
                 [ChatMessage(role="user", content="Hi")]
             )
         assert provider._call_model.call_count == len(provider.models)
-
-
-# ── Audio modality error handling ──────────────────────────────────
-
-
-class TestAudioModalityError:
-    def test_strip_audio_media_removes_audio_parts(self, provider):
-        """Audio media parts should be removed, non-audio kept."""
-        messages = [
-            ChatMessage(
-                role="user",
-                content="Listen to this",
-                media=[
-                    MediaPart(
-                        mime_type="audio/wav",
-                        data=b"audio-data",
-                        filename="voice.wav",
-                    ),
-                    MediaPart(
-                        mime_type="image/png",
-                        data=b"image-data",
-                        filename="photo.png",
-                    ),
-                ],
-            )
-        ]
-        stripped = provider._strip_audio_media(messages)
-        assert len(stripped) == 1
-        assert len(stripped[0].media) == 1
-        assert stripped[0].media[0].mime_type == "image/png"
-
-    def test_strip_audio_media_sets_none_when_all_audio(self, provider):
-        """When all media is audio, media should become None."""
-        messages = [
-            ChatMessage(
-                role="user",
-                content="",
-                media=[
-                    MediaPart(
-                        mime_type="audio/mp3",
-                        data=b"audio-data",
-                        filename="song.mp3",
-                    ),
-                ],
-            )
-        ]
-        stripped = provider._strip_audio_media(messages)
-        assert stripped[0].media is None
-        assert "cannot process audio" in stripped[0].content
-
-    def test_strip_audio_media_preserves_non_media_messages(self, provider):
-        """Messages without media should pass through unchanged."""
-        messages = [
-            ChatMessage(role="user", content="Just text"),
-            ChatMessage(role="model", content="A reply"),
-        ]
-        stripped = provider._strip_audio_media(messages)
-        assert len(stripped) == 2
-        assert stripped[0].content == "Just text"
-        assert stripped[1].content == "A reply"
-
-    @pytest.mark.asyncio
-    async def test_generate_retries_without_audio_on_modality_error(
-        self, provider
-    ):
-        """On audio modality error, should strip audio and retry."""
-        mock_result = MagicMock()
-        mock_result.content = "Text-only response"
-        mock_result.model_used = "Gemma 4"
-        mock_result.usage = {}
-
-        # First call fails with audio error, second succeeds
-        provider._call_model = AsyncMock(
-            side_effect=[
-                RuntimeError(
-                    f"API error 400: {_AUDIO_MODALITY_ERROR} for this model"
-                ),
-                mock_result,
-            ]
-        )
-        messages = [
-            ChatMessage(
-                role="user",
-                content="Transcribe this",
-                media=[
-                    MediaPart(
-                        mime_type="audio/wav",
-                        data=b"data",
-                        filename="voice.wav",
-                    )
-                ],
-            )
-        ]
-        result = await provider.generate(messages)
-        assert result.content == "Text-only response"
-        assert provider._call_model.call_count == 2
 
 
 # ── Request body building ─────────────────────────────────────────

@@ -39,8 +39,6 @@ _INITIAL_DELAY = 2.0
 _MAX_DELAY = 60.0
 _RETRY_STATUS_CODES = {429, 503, 500}
 
-# Error messages that indicate the model doesn't support a specific modality
-_AUDIO_MODALITY_ERROR = "audio input modality is not enabled"
 
 
 # Re-export for convenience
@@ -146,16 +144,10 @@ class ResilientGemmaProvider(LLMProvider):
             try:
                 return await self._call_model(model, messages, tools=tools)
             except Exception as e:
-                err_msg = str(e).lower()
-                if _AUDIO_MODALITY_ERROR in err_msg:
-                    # Strip audio and retry with the SAME model
-                    stripped_messages = self._strip_audio_media(messages)
-                    try:
-                        return await self._call_model(model, stripped_messages, tools=tools)
-                    except Exception as retry_e:
-                        last_error = retry_e
-                        continue
+                logger.error("Model %s failed: %s", model, e)
                 last_error = e
+                if model != self.models[-1]:
+                    logger.info("🔄 Falling back to next model...")
                 continue
 
         raise last_error or RuntimeError("All models failed")
@@ -169,25 +161,9 @@ class ResilientGemmaProvider(LLMProvider):
         for model_name in self.models:
             try:
                 async for chunk in self._stream_model(model_name, messages):
-                    yield (chunk, "Gemma 4")
+                    yield (chunk, model_name)
                 return
             except Exception as e:
-                error_str = str(e).lower()
-                # If audio modality not supported, strip audio and retry same model
-                if _AUDIO_MODALITY_ERROR in error_str:
-                    logger.warning(
-                        "Stream: model %s doesn't support audio — retrying without audio",
-                        model_name,
-                    )
-                    stripped = self._strip_audio_media(messages)
-                    try:
-                        async for chunk in self._stream_model(model_name, stripped):
-                            yield (chunk, "Gemma 4")
-                        return
-                    except Exception as e2:
-                        last_error = e2
-                        continue
-
                 logger.error("Streaming from %s failed: %s", model_name, e)
                 last_error = e
                 if model_name != self.models[-1]:
@@ -334,28 +310,6 @@ class ResilientGemmaProvider(LLMProvider):
 
         raise RuntimeError(f"Max retries exceeded for streaming model {model}")
 
-    @staticmethod
-    def _strip_audio_media(messages: list[ChatMessage]) -> list[ChatMessage]:
-        """Return a copy of messages with audio media parts removed."""
-        _AUDIO_MIMES = {"audio/", "application/ogg"}
-        stripped = []
-        for msg in messages:
-            if not msg.media:
-                stripped.append(msg)
-                continue
-            non_audio = [
-                m
-                for m in msg.media
-                if not any(m.mime_type.startswith(prefix) for prefix in _AUDIO_MIMES)
-            ]
-            stripped.append(
-                ChatMessage(
-                    role=msg.role,
-                    content=msg.content or "(Audio was attached but this model cannot process audio)",
-                    media=non_audio if non_audio else None,
-                )
-            )
-        return stripped
 
     @staticmethod
     def _parse_response(data: dict, model: str) -> GenerationResult:
