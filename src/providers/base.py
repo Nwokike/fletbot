@@ -15,9 +15,29 @@ from typing import AsyncGenerator, Optional
 class ChatMessage:
     """A single chat message in provider-neutral format."""
 
-    role: str  # "user" or "model"
+    role: str  # "user", "model", or "tool"
     content: str
     media: list[MediaPart] | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_result: ToolResult | None = None
+
+
+@dataclass
+class ToolCall:
+    """A requested tool call from the model."""
+
+    call_id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
+class ToolResult:
+    """The result of a tool execution."""
+
+    call_id: str
+    name: str
+    content: str
 
 
 @dataclass
@@ -47,6 +67,7 @@ class GenerationResult:
     model_used: str
     finish_reason: str = "STOP"
     usage: dict = field(default_factory=dict)
+    tool_calls: list[ToolCall] | None = None
 
 
 class LLMProvider(abc.ABC):

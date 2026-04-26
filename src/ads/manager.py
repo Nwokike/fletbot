@@ -63,7 +63,7 @@ class AdManager:
     """Manages ad display throughout the app.
 
     Ad strategy: Smart inline banners placed between content,
-    never interstitials (professional UX).
+    plus high-impact interstitials for premium monetization.
     """
 
     def __init__(self, page: ft.Page):
@@ -117,3 +117,31 @@ class AdManager:
     def create_settings_banner(self) -> ft.Container | None:
         """Create a smaller banner for settings/history views."""
         return self.create_inline_banner()
+
+    async def show_interstitial(self):
+        """Show a full-screen interstitial ad.
+        
+        Best used during natural transitions like starting a new chat
+        or switching between views.
+        """
+        if not self._available:
+            return
+
+        try:
+            interstitial = InterstitialAd(
+                unit_id=_interstitial_unit_id(),
+                on_click=lambda e: logger.info("Interstitial clicked"),
+                on_error=lambda e: logger.warning("Interstitial error: %s", e),
+                on_impression=lambda e: logger.info("Interstitial impression"),
+                on_open=lambda e: logger.info("Interstitial opened"),
+                on_close=lambda e: logger.info("Interstitial closed"),
+            )
+            # Add to page overlay (flet-ads usually needs to be in the component tree or overlay)
+            self._page.overlay.append(interstitial)
+            self._page.update()
+            
+            # Show the ad
+            interstitial.show()
+            logger.info("Interstitial ad requested")
+        except Exception as e:
+            logger.warning("Failed to show interstitial ad: %s", e)

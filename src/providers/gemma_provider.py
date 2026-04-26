@@ -39,6 +39,9 @@ _INITIAL_DELAY = 2.0
 _MAX_DELAY = 60.0
 _RETRY_STATUS_CODES = {429, 503, 500}
 
+# Error messages that indicate the model doesn't support a specific modality
+_AUDIO_MODALITY_ERROR = "audio input modality is not enabled"
+
 
 # Re-export for convenience
 ProviderResponse = GenerationResult
@@ -66,33 +69,55 @@ class ResilientGemmaProvider(LLMProvider):
         self._client = httpx.AsyncClient(timeout=120.0)
 
     # ── Request building ────────────────────────────────────────────
-    def _build_request_body(self, messages: list[ChatMessage]) -> dict:
-        """Build the Gemini API request body from chat messages."""
+    def _build_request_body(
+        self, messages: list[ChatMessage], tools: list[dict] | None = None
+    ) -> dict:
+        """Construct the Gemini API request body."""
         contents = []
         for msg in messages:
-            role = "model" if msg.role in ("assistant", "model") else "user"
-            parts: list[dict] = [{"text": msg.content}]
+            role = "model" if msg.role == "assistant" else msg.role
+            parts = []
 
-            # Multimodal: attach media if present
-            if msg.media:
-                for media in msg.media:
-                    mime = media.mime_type
-                    if mime == "application/octet-stream":
-                        # Safety fallback for the API
-                        mime = "text/plain"
-                        
+            # Handle tool results (function responses)
+            if msg.role == "tool" and msg.tool_result:
+                parts.append(
+                    {
+                        "function_response": {
+                            "name": msg.tool_result.name,
+                            "response": {"content": msg.tool_result.content},
+                        }
+                    }
+                )
+            # Handle tool calls (function calls)
+            elif msg.tool_calls:
+                for tc in msg.tool_calls:
                     parts.append(
                         {
-                            "inline_data": {
-                                "mime_type": mime,
-                                "data": base64.b64encode(media.data).decode("ascii"),
+                            "function_call": {
+                                "name": tc.name,
+                                "args": tc.arguments,
                             }
                         }
                     )
+            # Handle regular text/media
+            else:
+                if msg.content:
+                    parts.append({"text": msg.content})
 
-            contents.append({"role": role, "parts": parts})
+                if msg.media:
+                    for media in msg.media:
+                        parts.append(
+                            {
+                                "inline_data": {
+                                    "mime_type": media.mime_type,
+                                    "data": base64.b64encode(media.data).decode("utf-8"),
+                                }
+                            }
+                        )
+            if parts:
+                contents.append({"role": role, "parts": parts})
 
-        body: dict = {
+        body = {
             "contents": contents,
             "generationConfig": {
                 "temperature": self.config.temperature,
@@ -103,26 +128,34 @@ class ResilientGemmaProvider(LLMProvider):
         }
 
         if self.system_instruction:
-            body["systemInstruction"] = {
-                "parts": [{"text": self.system_instruction}],
-            }
+            body["systemInstruction"] = {"parts": [{"text": self.system_instruction}]}
+
+        if tools:
+            body["tools"] = tools
 
         return body
 
     # ── Public API (LLMProvider) ────────────────────────────────────
-    async def generate(self, messages: list[ChatMessage]) -> GenerationResult:
-        """Generate a response, with automatic retry and fallback."""
+    async def generate(
+        self, messages: list[ChatMessage], tools: list[dict] | None = None
+    ) -> GenerationResult:
+        """Generate a complete response with automated fallback/retry."""
         last_error = None
 
-        for model_name in self.models:
+        for model in self.models:
             try:
-                result = await self._call_model(model_name, messages)
-                return result
+                return await self._call_model(model, messages, tools=tools)
             except Exception as e:
-                logger.error("Model %s failed: %s", model_name, e)
+                err_msg = str(e).lower()
+                if _AUDIO_MODALITY_ERROR in err_msg:
+                    # Strip audio and retry with the SAME model
+                    stripped_messages = self._strip_audio_media(messages)
+                    try:
+                        return await self._call_model(model, stripped_messages, tools=tools)
+                    except Exception as retry_e:
+                        last_error = retry_e
+                        continue
                 last_error = e
-                if model_name != self.models[-1]:
-                    logger.info("🔄 Falling back to next model...")
                 continue
 
         raise last_error or RuntimeError("All models failed")
@@ -139,6 +172,22 @@ class ResilientGemmaProvider(LLMProvider):
                     yield (chunk, "Gemma 4")
                 return
             except Exception as e:
+                error_str = str(e).lower()
+                # If audio modality not supported, strip audio and retry same model
+                if _AUDIO_MODALITY_ERROR in error_str:
+                    logger.warning(
+                        "Stream: model %s doesn't support audio — retrying without audio",
+                        model_name,
+                    )
+                    stripped = self._strip_audio_media(messages)
+                    try:
+                        async for chunk in self._stream_model(model_name, stripped):
+                            yield (chunk, "Gemma 4")
+                        return
+                    except Exception as e2:
+                        last_error = e2
+                        continue
+
                 logger.error("Streaming from %s failed: %s", model_name, e)
                 last_error = e
                 if model_name != self.models[-1]:
@@ -166,11 +215,11 @@ class ResilientGemmaProvider(LLMProvider):
 
     # ── Internal ────────────────────────────────────────────────────
     async def _call_model(
-        self, model: str, messages: list[ChatMessage]
+        self, model: str, messages: list[ChatMessage], tools: list[dict] | None = None
     ) -> GenerationResult:
         """Call a single model with retry logic."""
         url = f"{_API_BASE}/models/{model}:generateContent"
-        body = self._build_request_body(messages)
+        body = self._build_request_body(messages, tools=tools)
         delay = _INITIAL_DELAY
 
         for attempt in range(1, _MAX_RETRIES + 1):
@@ -184,7 +233,7 @@ class ResilientGemmaProvider(LLMProvider):
 
                 if response.status_code == 200:
                     data = response.json()
-                    return self._parse_response(data, "Gemma 4")
+                    return self._parse_response(data, model)
 
                 if response.status_code in _RETRY_STATUS_CODES:
                     logger.warning(
@@ -286,20 +335,60 @@ class ResilientGemmaProvider(LLMProvider):
         raise RuntimeError(f"Max retries exceeded for streaming model {model}")
 
     @staticmethod
+    def _strip_audio_media(messages: list[ChatMessage]) -> list[ChatMessage]:
+        """Return a copy of messages with audio media parts removed."""
+        _AUDIO_MIMES = {"audio/", "application/ogg"}
+        stripped = []
+        for msg in messages:
+            if not msg.media:
+                stripped.append(msg)
+                continue
+            non_audio = [
+                m
+                for m in msg.media
+                if not any(m.mime_type.startswith(prefix) for prefix in _AUDIO_MIMES)
+            ]
+            stripped.append(
+                ChatMessage(
+                    role=msg.role,
+                    content=msg.content or "(Audio was attached but this model cannot process audio)",
+                    media=non_audio if non_audio else None,
+                )
+            )
+        return stripped
+
+    @staticmethod
     def _parse_response(data: dict, model: str) -> GenerationResult:
         """Parse the Gemini API response."""
         candidates = data.get("candidates", [])
         if not candidates:
             return GenerationResult(
-                content="I couldn't generate a response. Please try again.",
+                content="Error: Model couldn't generate a response (empty candidates).",
                 model_used=model,
                 finish_reason="ERROR",
             )
 
         candidate = candidates[0]
-        parts = candidate.get("content", {}).get("parts", [])
-        text = "".join(part.get("text", "") for part in parts)
-        finish_reason = candidate.get("finishReason", "STOP")
+        content_obj = candidate.get("content", {})
+        parts = content_obj.get("parts", [])
+
+        # Extract text
+        text_parts = [p.get("text") for p in parts if "text" in p]
+        full_content = "".join(text_parts) if text_parts else ""
+
+        # Extract tool calls
+        tool_calls = []
+        for p in parts:
+            if "function_call" in p:
+                fc = p["function_call"]
+                # We use the name as ID if no explicit ID is provided
+                tool_calls.append(
+                    ToolCall(
+                        call_id=fc.get("name"),
+                        name=fc.get("name"),
+                        arguments=fc.get("args", {}),
+                    )
+                )
 
         usage_meta = data.get("usageMetadata", {})
         usage = {
@@ -309,8 +398,9 @@ class ResilientGemmaProvider(LLMProvider):
         }
 
         return GenerationResult(
-            content=text,
+            content=full_content,
             model_used=model,
-            finish_reason=finish_reason,
+            finish_reason=candidate.get("finishReason", "STOP"),
             usage=usage,
+            tool_calls=tool_calls if tool_calls else None,
         )

@@ -4,10 +4,10 @@ FletBot incorporates material from the projects listed below.
 
 ---
 
-## Nanobot / HKUDS Agent Architecture
+## adkbot / HKUDS Agent Architecture
 
 Portions of the agent runner and provider resilience patterns were
-adapted from the [Nanobot](https://github.com/Nwokike/nanobot)
+adapted from the [adkbot](https://github.com/Nwokike/adkbot)
 project (MIT License).
 
 ```

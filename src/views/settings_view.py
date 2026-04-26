@@ -94,6 +94,31 @@ def build_settings_view(
             ),
             on_click=change_api_key,
         ),
+        # AI Model section
+        section_header("AI MODEL"),
+        setting_tile(
+            ft.Icons.SMART_TOY_ROUNDED,
+            "Primary: Gemma 4 31B",
+            "Dense model — maximum quality",
+        ),
+        setting_tile(
+            ft.Icons.BOLT_ROUNDED,
+            "Fallback: Gemma 4 26B",
+            "MoE model — faster inference (4B active params)",
+        ),
+        setting_tile(
+            ft.Icons.SPEED_ROUNDED,
+            "Emergency: Gemma 4 4B",
+            "Lightweight fallback when larger models are unavailable",
+        ),
+        setting_tile(
+            ft.Icons.OPEN_IN_NEW_ROUNDED,
+            "About Gemma 4",
+            "deepmind.google/models/gemma/gemma-4",
+            on_click=lambda e: page.launch_url(
+                "https://deepmind.google/models/gemma/gemma-4/"
+            ),
+        ),
         # Data section
         section_header("DATA"),
         setting_tile(

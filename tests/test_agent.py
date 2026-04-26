@@ -18,13 +18,9 @@ def test_context_builder_with_user():
 @pytest.mark.asyncio
 async def test_agent_runner_success():
     mock_provider = MagicMock()
-    # generate_stream is a function that returns an async generator
-    # So we use side_effect with an async generator function
-    async def mock_stream(*args, **kwargs):
-        yield "Part 1", "Gemma 4"
-        yield "Part 2", "Gemma 4"
-        
-    mock_provider.generate_stream.side_effect = mock_stream
+    # Now send_message_stream uses provider.generate internally for Phase 1 tools
+    result = GenerationResult(content="Hello World", model_used="Gemma 4")
+    mock_provider.generate = AsyncMock(return_value=result)
     
     runner = AgentRunner(mock_provider)
     from src.session.manager import Session
@@ -34,4 +30,5 @@ async def test_agent_runner_success():
     async for chunk, model in runner.send_message_stream("Test", session):
         results.append(chunk)
         
-    assert results == ["Part 1", "Part 2"]
+    assert "Hello" in results[0]
+    assert results[-1].strip() == "Hello World"

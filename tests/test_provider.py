@@ -39,7 +39,7 @@ async def test_generate_success():
         result = await provider.generate(messages)
         
         assert result.content == "Hi there!"
-        assert result.model_used == "Gemma 4"
+        assert "gemma-4" in result.model_used.lower()
 
 def test_parse_response_error():
     provider = ResilientGemmaProvider(api_key="key")

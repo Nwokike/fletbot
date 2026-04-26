@@ -11,6 +11,7 @@ from typing import Optional
 
 import flet as ft
 
+from src.agent.memory import MemoryStore
 from src.agent.runner import AgentRunner
 from src.components.input_bar import InputBar
 from src.components.message_bubble import MessageBubble, ThinkingIndicator
@@ -46,9 +47,10 @@ class ChatView:
         self.session_manager = session_manager
         self.on_navigate = on_navigate
 
-        # Provider + Runner
+        # Provider + Runner + Memory
         self.provider = ResilientGemmaProvider(api_key=api_key)
-        self.runner = AgentRunner(provider=self.provider)
+        self._memory = MemoryStore()
+        self.runner = AgentRunner(provider=self.provider, memory_store=self._memory)
 
         # Native services
         self._camera = CameraService(page)
@@ -94,6 +96,14 @@ class ChatView:
 
     def new_chat(self):
         """Start a new conversation."""
+        # Archive the previous conversation to memory before starting fresh
+        if self.current_session and self.current_session.messages:
+            self.page.run_task(self.runner.archive_conversation, self.current_session)
+
+        # Show Interstitial Ad on New Chat transition
+        from src.ads.manager import AdManager
+        self.page.run_task(AdManager(self.page).show_interstitial)
+
         self.current_session = self.session_manager.create_session()
         self._message_list.controls.clear()
         self._message_count_since_ad = 0

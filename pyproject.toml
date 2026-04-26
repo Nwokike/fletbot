@@ -11,6 +11,8 @@ authors = [
 keywords = ["ai", "assistant", "chatbot", "flet", "gemma"]
 
 dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "ddgs>=9.14.1",
     "flet>=0.84.0",
     "flet-ads>=0.84.0",
     "flet-audio-recorder>=0.84.0",
@@ -18,6 +20,7 @@ dependencies = [
     "flet-permission-handler>=0.84.0",
     "flet-secure-storage>=0.84.0",
     "httpx>=0.28.1",
+    "markdownify>=1.2.2",
 ]
 
 [build-system]
