@@ -13,6 +13,9 @@ keywords = ["ai", "assistant", "chatbot", "flet", "gemma"]
 dependencies = [
     "flet>=0.84.0",
     "flet-ads>=0.84.0",
+    "flet-audio-recorder>=0.84.0",
+    "flet-camera>=0.84.0",
+    "flet-permission-handler>=0.84.0",
     "flet-secure-storage>=0.84.0",
     "httpx>=0.28.1",
 ]
@@ -38,6 +41,23 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
 ignore = ["E501"]
+
+# ── Flet Build Configuration ────────────────────────────────────────
+[tool.flet]
+permissions = ["camera", "microphone"]
+
+[tool.flet.android.meta_data]
+"com.google.android.gms.ads.APPLICATION_ID" = "ca-app-pub-3940256099942544~3347511713"
+
+[tool.flet.android.permission]
+"android.permission.CAMERA" = true
+"android.permission.RECORD_AUDIO" = true
+"android.permission.WRITE_EXTERNAL_STORAGE" = true
+
+[tool.flet.ios.info]
+NSCameraUsageDescription = "FletBot uses the camera to capture images for AI analysis"
+NSMicrophoneUsageDescription = "FletBot uses the microphone for voice input"
+GADApplicationIdentifier = "ca-app-pub-3940256099942544~3347511713"
 
 [dependency-groups]
 dev = [

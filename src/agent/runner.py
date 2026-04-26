@@ -1,39 +1,23 @@
 """Agent runner — simplified agent loop for consumer chat.
 
 Adapted from Nanobot's agent/runner.py but stripped down for consumer use:
-- No tool execution (Phase 2)
-- No subagents
-- Simple message → response flow with streaming
+- Streaming support
+- Uses ContextBuilder for system prompts
+- Multimodal message support (images, audio)
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
 from typing import AsyncGenerator
 
-from providers.gemma_provider import (
-    ChatMessage,
-    GenerationResult,
-    ResilientGemmaProvider,
-)
+from agent.context import ContextBuilder
+from providers.base import ChatMessage, GenerationResult, MediaPart
+from providers.gemma_provider import ResilientGemmaProvider
 from session.manager import Session
 
 logger = logging.getLogger(__name__)
-
-# System prompt for consumer assistant
-SYSTEM_PROMPT = """You are FletBot, a friendly and helpful AI assistant. You are powered by Google's Gemma 4 model.
-
-Key traits:
-- You are concise but thorough
-- You format responses with markdown when appropriate (bold, lists, code blocks, etc.)
-- You are honest about your limitations
-- You maintain a warm, approachable tone
-- You remember context within the current conversation
-
-Current date and time: {current_time}
-"""
 
 
 class AgentRunner:
@@ -44,11 +28,7 @@ class AgentRunner:
 
     def __init__(self, provider: ResilientGemmaProvider):
         self.provider = provider
-
-    def _build_system_prompt(self) -> str:
-        """Build the system prompt with current context."""
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        return SYSTEM_PROMPT.format(current_time=now)
+        self._context = ContextBuilder()
 
     def _session_to_messages(self, session: Session) -> list[ChatMessage]:
         """Convert session history to provider message format."""
@@ -62,18 +42,15 @@ class AgentRunner:
         self,
         user_message: str,
         session: Session,
+        media: list[MediaPart] | None = None,
     ) -> GenerationResult:
         """Send a message and get a complete response."""
-        # Update system instruction
-        self.provider.system_instruction = self._build_system_prompt()
-
-        # Build message history from session
+        self.provider.system_instruction = self._context.build()
         messages = self._session_to_messages(session)
+        messages.append(
+            ChatMessage(role="user", content=user_message, media=media)
+        )
 
-        # Add the new user message
-        messages.append(ChatMessage(role="user", content=user_message))
-
-        # Call the provider
         start = time.time()
         result = await self.provider.generate(messages)
         elapsed = time.time() - start
@@ -84,27 +61,23 @@ class AgentRunner:
             elapsed,
             result.usage.get("total_tokens", 0),
         )
-
         return result
 
     async def send_message_stream(
         self,
         user_message: str,
         session: Session,
+        media: list[MediaPart] | None = None,
     ) -> AsyncGenerator[tuple[str, str], None]:
         """Send a message and stream the response.
 
         Yields (chunk, model_used) tuples as they arrive.
         """
-        # Update system instruction
-        self.provider.system_instruction = self._build_system_prompt()
-
-        # Build message history from session
+        self.provider.system_instruction = self._context.build()
         messages = self._session_to_messages(session)
+        messages.append(
+            ChatMessage(role="user", content=user_message, media=media)
+        )
 
-        # Add the new user message
-        messages.append(ChatMessage(role="user", content=user_message))
-
-        # Stream from provider
         async for chunk, model in self.provider.generate_stream(messages):
             yield (chunk, model)

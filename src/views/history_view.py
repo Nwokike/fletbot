@@ -1,4 +1,7 @@
-"""History view — list of past conversations."""
+"""History view — list of past conversations.
+
+Uses design system tokens for all visual styling.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +12,8 @@ from datetime import datetime
 import flet as ft
 
 from session.manager import SessionManager
+from theme import tokens
+from theme.styles import brand_gradient_bg, standard_appbar
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +55,9 @@ def build_history_view(
     def on_delete_session(session_id: str):
         def handler(e):
             session_manager.delete_session(session_id)
-            # Rebuild view
-            page.views[-1] = build_history_view(page, session_manager, on_select_session, on_back)
+            page.views[-1] = build_history_view(
+                page, session_manager, on_select_session, on_back
+            )
             page.update()
 
         return handler
@@ -68,46 +74,48 @@ def build_history_view(
                     ft.Container(
                         content=ft.Icon(
                             ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED,
-                            size=20,
+                            size=tokens.ICON_MD,
                             color=ft.Colors.PRIMARY,
                         ),
-                        width=40,
-                        height=40,
+                        width=tokens.ICON_XL,
+                        height=tokens.ICON_XL,
                         bgcolor=ft.Colors.PRIMARY_CONTAINER,
-                        border_radius=20,
+                        border_radius=tokens.RADIUS_XL,
                         alignment=ft.Alignment.CENTER,
                     ),
                     ft.Column(
                         controls=[
                             ft.Text(
                                 session.title,
-                                size=15,
+                                size=tokens.FONT_MD,
                                 weight=ft.FontWeight.W_500,
                                 max_lines=1,
                                 overflow=ft.TextOverflow.ELLIPSIS,
                             ),
                             ft.Text(
                                 f"{session.message_count} messages · {_format_time(session.updated_at)}",
-                                size=12,
+                                size=tokens.FONT_XS,
                                 color=ft.Colors.ON_SURFACE_VARIANT,
                             ),
                         ],
-                        spacing=2,
+                        spacing=tokens.SPACE_XXS,
                         expand=True,
                     ),
                     ft.IconButton(
                         icon=ft.Icons.DELETE_OUTLINE_ROUNDED,
-                        icon_size=18,
+                        icon_size=tokens.ICON_SM,
                         icon_color=ft.Colors.ERROR,
                         tooltip="Delete",
                         on_click=on_delete_session(session.id),
                     ),
                 ],
-                spacing=12,
+                spacing=tokens.SPACE_MD,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            padding=ft.padding.symmetric(horizontal=16, vertical=12),
-            border_radius=12,
+            padding=ft.Padding.symmetric(
+                horizontal=tokens.SPACE_LG, vertical=tokens.SPACE_MD
+            ),
+            border_radius=tokens.RADIUS_MD,
             ink=True,
             on_click=on_session_tap(session.id),
         )
@@ -120,12 +128,12 @@ def build_history_view(
                 controls=[
                     ft.Icon(
                         ft.Icons.CHAT_OUTLINED,
-                        size=64,
+                        size=tokens.ICON_LOGO,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                     ft.Text(
                         "No conversations yet",
-                        size=18,
+                        size=tokens.FONT_LG,
                         weight=ft.FontWeight.W_500,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
@@ -136,7 +144,7 @@ def build_history_view(
                     ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=8,
+                spacing=tokens.SPACE_SM,
             ),
             alignment=ft.Alignment.CENTER,
             expand=True,
@@ -145,30 +153,28 @@ def build_history_view(
         content = ft.ListView(
             controls=tiles,
             expand=True,
-            spacing=4,
-            padding=ft.padding.symmetric(horizontal=12, vertical=8),
+            spacing=tokens.SPACE_XS,
+            padding=ft.Padding.symmetric(
+                horizontal=tokens.SPACE_MD, vertical=tokens.SPACE_SM
+            ),
         )
 
-    appbar = ft.AppBar(
+    appbar = standard_appbar(
+        "History",
         leading=ft.IconButton(
             icon=ft.Icons.ARROW_BACK_ROUNDED,
             tooltip="Back",
             on_click=lambda e: on_back(),
         ),
-        title=ft.Text(
-            "History",
-            weight=ft.FontWeight.W_600,
-            size=20,
-        ),
-        center_title=True,
-        bgcolor=ft.Colors.SURFACE,
+        transparent=True,
     )
+
+    gradient_bg = brand_gradient_bg(content)
 
     view = ft.View(
         route="/history",
-        controls=[content],
+        controls=[gradient_bg],
         appbar=appbar,
-        bgcolor=ft.Colors.SURFACE,
         padding=0,
     )
 

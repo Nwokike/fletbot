@@ -1,59 +1,51 @@
-"""Token manager — secure storage for API keys and auth tokens."""
+"""Token manager — API key storage.
+
+Uses ``ft.SharedPreferences`` service for persistent key-value storage.
+"""
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+
+import flet as ft
 
 logger = logging.getLogger(__name__)
 
-# Key names in secure/client storage
-_API_KEY_SLOT = "fletbot.api_key"
-_USER_NAME_SLOT = "fletbot.user_name"
+_API_KEY_SLOT = "fletbot_api_key"
 
 
 class TokenManager:
-    """Manages API key storage using Flet's client_storage (SharedPreferences).
+    """Manage the user's API key via ft.SharedPreferences."""
 
-    For MVP we use client_storage which is available on all platforms.
-    In production, migrate to flet-secure-storage for encrypted storage.
-    """
-
-    def __init__(self, page):
+    def __init__(self, page: ft.Page):
         self._page = page
-
-    async def save_api_key(self, key: str) -> None:
-        """Store the Google AI Studio API key."""
-        await self._page.shared_preferences.set(_API_KEY_SLOT, key)
-        logger.info("API key saved to client storage")
-
-    async def get_api_key(self) -> Optional[str]:
-        """Retrieve the stored API key, or None if not set."""
-        try:
-            return await self._page.shared_preferences.get(_API_KEY_SLOT)
-        except Exception:
-            return None
+        self._prefs = ft.SharedPreferences()
 
     async def has_api_key(self) -> bool:
-        """Check if an API key is stored."""
+        """Check whether an API key is stored."""
         key = await self.get_api_key()
         return key is not None and len(key) > 0
+
+    async def get_api_key(self) -> str | None:
+        """Retrieve the stored API key, or None."""
+        try:
+            return await self._prefs.get(_API_KEY_SLOT)
+        except Exception as e:
+            logger.error("Failed to read API key: %s", e)
+            return None
+
+    async def save_api_key(self, key: str) -> None:
+        """Store the API key."""
+        try:
+            await self._prefs.set(_API_KEY_SLOT, key)
+            logger.info("API key saved")
+        except Exception as e:
+            logger.error("Failed to save API key: %s", e)
 
     async def clear_api_key(self) -> None:
         """Remove the stored API key."""
         try:
-            await self._page.shared_preferences.remove(_API_KEY_SLOT)
-        except Exception:
-            pass
-        logger.info("API key cleared from client storage")
-
-    async def save_user_name(self, name: str) -> None:
-        """Store a display name for the user."""
-        await self._page.shared_preferences.set(_USER_NAME_SLOT, name)
-
-    async def get_user_name(self) -> Optional[str]:
-        """Retrieve the stored user name."""
-        try:
-            return await self._page.shared_preferences.get(_USER_NAME_SLOT)
-        except Exception:
-            return None
+            await self._prefs.remove(_API_KEY_SLOT)
+            logger.info("API key cleared")
+        except Exception as e:
+            logger.error("Failed to clear API key: %s", e)

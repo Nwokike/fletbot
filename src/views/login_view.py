@@ -1,4 +1,7 @@
-"""Login view — API key entry screen."""
+"""Login view — API key entry screen.
+
+Uses design system for all visual styling.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +10,9 @@ import logging
 from typing import Callable
 
 import flet as ft
+
+from theme import colors, tokens
+from theme.styles import brand_gradient_bg, filled_primary_style, glass_card
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +29,23 @@ def build_login_view(
         hint_text="Paste your API key here",
         password=True,
         can_reveal_password=True,
-        border_radius=12,
+        border_radius=tokens.RADIUS_MD,
         filled=True,
         prefix_icon=ft.Icons.KEY_ROUNDED,
-        text_size=15,
+        text_size=tokens.FONT_MD,
     )
 
     status_text = ft.Text(
         "",
-        size=13,
+        size=tokens.FONT_SM,
         color=ft.Colors.ERROR,
         visible=False,
     )
 
     loading_ring = ft.ProgressRing(
-        width=20,
-        height=20,
-        stroke_width=2,
+        width=tokens.ICON_MD,
+        height=tokens.ICON_MD,
+        stroke_width=tokens.PROGRESS_STROKE,
         visible=False,
     )
 
@@ -63,7 +69,6 @@ def build_login_view(
         page.update()
 
         try:
-            # Quick validation — try a minimal API call
             from providers.gemma_provider import ResilientGemmaProvider
 
             provider = ResilientGemmaProvider(api_key=key)
@@ -90,6 +95,9 @@ def build_login_view(
             status_text.value = f"Connection error: {str(exc)[:80]}"
             status_text.color = ft.Colors.ERROR
             page.update()
+            page.show_dialog(
+                ft.SnackBar(content=ft.Text(f"Error: {str(exc)[:100]}"))
+            )
 
     def open_ai_studio(e):
         """Open Google AI Studio API key page."""
@@ -98,21 +106,21 @@ def build_login_view(
     # Build the view layout
     logo_icon = ft.Image(
         src="icon.png",
-        width=80,
-        height=80,
+        width=tokens.ICON_LOGO_LG,
+        height=tokens.ICON_LOGO_LG,
         fit=ft.BoxFit.CONTAIN,
     )
 
     title = ft.Text(
         "FletBot",
-        size=32,
+        size=tokens.FONT_TITLE,
         weight=ft.FontWeight.BOLD,
         text_align=ft.TextAlign.CENTER,
     )
 
     subtitle = ft.Text(
         "Your AI assistant, powered by Gemma 4",
-        size=15,
+        size=tokens.FONT_MD,
         color=ft.Colors.ON_SURFACE_VARIANT,
         text_align=ft.TextAlign.CENTER,
     )
@@ -121,9 +129,7 @@ def build_login_view(
         content="Get a free API key →",
         icon=ft.Icons.OPEN_IN_NEW_ROUNDED,
         on_click=open_ai_studio,
-        style=ft.ButtonStyle(
-            color=ft.Colors.PRIMARY,
-        ),
+        style=ft.ButtonStyle(color=ft.Colors.PRIMARY),
     )
 
     continue_button = ft.FilledButton(
@@ -132,67 +138,43 @@ def build_login_view(
         on_click=validate_and_save,
         width=200,
         height=48,
-        style=ft.ButtonStyle(
-            shape=ft.RoundedRectangleBorder(radius=12),
-        ),
+        style=filled_primary_style(),
     )
 
-    card_content = ft.Container(
-        content=ft.Column(
-            controls=[
-                logo_icon,
-                title,
-                subtitle,
-                ft.Container(height=20),
-                api_key_field,
-                ft.Container(height=4),
-                get_key_button,
-                ft.Container(height=8),
-                ft.Row(
-                    controls=[loading_ring, status_text],
-                    spacing=8,
-                    alignment=ft.MainAxisAlignment.CENTER,
-                ),
-                ft.Container(height=12),
-                ft.Row(
-                    controls=[continue_button],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                ),
-            ],
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            spacing=4,
-        ),
-        width=420,
-        padding=40,
-        border_radius=24,
-        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.WHITE),
-        blur=ft.Blur(10, 10, ft.BlurTileMode.MIRROR),
-        border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
-        shadow=ft.BoxShadow(
-            spread_radius=0,
-            blur_radius=20,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-            offset=ft.Offset(0, 10),
-        ),
+    card_content_col = ft.Column(
+        controls=[
+            logo_icon,
+            title,
+            subtitle,
+            ft.Container(height=tokens.SPACE_XL),
+            api_key_field,
+            ft.Container(height=tokens.SPACE_XS),
+            get_key_button,
+            ft.Container(height=tokens.SPACE_SM),
+            ft.Row(
+                controls=[loading_ring, status_text],
+                spacing=tokens.SPACE_SM,
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+            ft.Container(height=tokens.SPACE_MD),
+            ft.Row(
+                controls=[continue_button],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=tokens.SPACE_XS,
     )
 
-    # Wrap in a gradient container
-    gradient_bg = ft.Container(
-        content=ft.Container(
-            content=card_content,
+    card = glass_card(card_content_col)
+
+    # Wrap in brand gradient
+    gradient_bg = brand_gradient_bg(
+        ft.Container(
+            content=card,
             alignment=ft.Alignment.CENTER,
             expand=True,
-        ),
-        expand=True,
-        gradient=ft.LinearGradient(
-            begin=ft.Alignment.TOP_LEFT,
-            end=ft.Alignment.BOTTOM_RIGHT,
-            colors=[
-                "#0B1914",  # Very dark green
-                "#050A08",  # Almost black
-                "#1A1400",  # Very dark gold/brown
-            ],
-        ),
+        )
     )
 
     view = ft.View(

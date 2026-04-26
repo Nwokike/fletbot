@@ -1,20 +1,25 @@
-"""Message bubble component for the chat UI."""
+"""Message bubble component for the chat UI.
+
+Uses design system tokens for all visual styling.
+"""
 
 from __future__ import annotations
 
 import flet as ft
 
 from components.markdown_renderer import MarkdownRenderer
+from theme import colors, tokens
+from theme.styles import dark_shadow, primary_shadow
 
 
 class MessageBubble(ft.Container):
     """A chat message bubble.
 
-    User messages: right-aligned, primary color.
-    AI messages: left-aligned, surface variant, rendered as markdown.
+    User messages: right-aligned, Kiri Green gradient.
+    AI messages: left-aligned, glassmorphic, rendered as markdown.
     """
 
-    def __init__(self, role: str, content: str, **kwargs):
+    def __init__(self, role: str, content: str, on_copy=None, on_share=None, **kwargs):
         self._role = role
         self._content = content
 
@@ -25,7 +30,7 @@ class MessageBubble(ft.Container):
             display = ft.Text(
                 content,
                 color=ft.Colors.ON_PRIMARY,
-                size=15,
+                size=tokens.FONT_MD,
                 selectable=True,
             )
         else:
@@ -34,55 +39,85 @@ class MessageBubble(ft.Container):
         # Role label
         role_label = ft.Text(
             "You" if is_user else "FletBot",
-            size=11,
+            size=tokens.FONT_XXS,
             weight=ft.FontWeight.BOLD,
-            color=(ft.Colors.ON_PRIMARY_CONTAINER if is_user else ft.Colors.PRIMARY),
+            color=(
+                ft.Colors.ON_PRIMARY_CONTAINER if is_user else ft.Colors.PRIMARY
+            ),
         )
 
+        # Action buttons for AI messages
+        action_row: list[ft.Control] = []
+        if not is_user and content:
+            if on_copy:
+                action_row.append(
+                    ft.IconButton(
+                        icon=ft.Icons.COPY_ROUNDED,
+                        icon_size=tokens.ICON_SM,
+                        icon_color=ft.Colors.ON_SURFACE_VARIANT,
+                        tooltip="Copy",
+                        on_click=lambda _: on_copy(content),
+                    )
+                )
+            if on_share:
+                action_row.append(
+                    ft.IconButton(
+                        icon=ft.Icons.SHARE_ROUNDED,
+                        icon_size=tokens.ICON_SM,
+                        icon_color=ft.Colors.ON_SURFACE_VARIANT,
+                        tooltip="Share",
+                        on_click=lambda _: on_share(content),
+                    )
+                )
+
+        bubble_controls: list[ft.Control] = [role_label, display]
+        if action_row:
+            bubble_controls.append(
+                ft.Row(
+                    controls=action_row,
+                    spacing=0,
+                    alignment=ft.MainAxisAlignment.END,
+                )
+            )
+
         bubble_content = ft.Column(
-            controls=[role_label, display],
-            spacing=4,
+            controls=bubble_controls,
+            spacing=tokens.SPACE_XS,
             tight=True,
         )
 
         super().__init__(
             content=bubble_content,
-            bgcolor=(None if is_user else ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
-            gradient=(
-                ft.LinearGradient(
-                    begin=ft.Alignment.BOTTOM_LEFT,
-                    end=ft.Alignment.TOP_RIGHT,
-                    colors=["#00A859", "#008A49"],
-                ) if is_user else None
+            bgcolor=(None if is_user else colors.GLASS_BG),
+            gradient=(colors.user_bubble_gradient() if is_user else None),
+            blur=(
+                None
+                if is_user
+                else ft.Blur(tokens.BLUR_SM, tokens.BLUR_SM, ft.BlurTileMode.MIRROR)
             ),
-            blur=(None if is_user else ft.Blur(10, 10, ft.BlurTileMode.MIRROR)),
-            border=(None if is_user else ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE))),
-            border_radius=ft.border_radius.only(
-                top_left=16,
-                top_right=16,
-                bottom_left=4 if is_user else 16,
-                bottom_right=16 if is_user else 4,
+            border=(
+                None
+                if is_user
+                else ft.Border.all(1, colors.GLASS_BORDER_COLOR)
             ),
-            padding=ft.padding.symmetric(horizontal=16, vertical=10),
-            margin=ft.margin.only(
-                left=60 if is_user else 0,
-                right=0 if is_user else 60,
-                bottom=8,
+            border_radius=ft.BorderRadius.only(
+                top_left=tokens.RADIUS_LG,
+                top_right=tokens.RADIUS_LG,
+                bottom_left=tokens.RADIUS_XS if is_user else tokens.RADIUS_LG,
+                bottom_right=tokens.RADIUS_LG if is_user else tokens.RADIUS_XS,
             ),
-            animate_opacity=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
-            shadow=(
-                ft.BoxShadow(
-                    spread_radius=0,
-                    blur_radius=10,
-                    color=ft.Colors.with_opacity(0.2, "#00A859"),
-                    offset=ft.Offset(0, 4),
-                ) if is_user else ft.BoxShadow(
-                    spread_radius=0,
-                    blur_radius=10,
-                    color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-                    offset=ft.Offset(0, 4),
-                )
+            padding=ft.Padding.symmetric(
+                horizontal=tokens.SPACE_LG, vertical=tokens.SPACE_SM + 2
             ),
+            margin=ft.Margin.only(
+                left=tokens.BUBBLE_INDENT if is_user else 0,
+                right=0 if is_user else tokens.BUBBLE_INDENT,
+                bottom=tokens.SPACE_SM,
+            ),
+            animate_opacity=ft.Animation(
+                tokens.ANIMATION_MS, ft.AnimationCurve.EASE_OUT
+            ),
+            shadow=(primary_shadow() if is_user else dark_shadow()),
             **kwargs,
         )
 
@@ -95,20 +130,24 @@ class ThinkingIndicator(ft.Container):
             content=ft.Row(
                 controls=[
                     ft.ProgressRing(
-                        width=16,
-                        height=16,
-                        stroke_width=2,
+                        width=tokens.ICON_SM - 2,
+                        height=tokens.ICON_SM - 2,
+                        stroke_width=tokens.PROGRESS_STROKE,
                         color=ft.Colors.PRIMARY,
                     ),
                     ft.Text(
                         "FletBot is thinking...",
-                        size=13,
+                        size=tokens.FONT_SM,
                         italic=True,
                         color=ft.Colors.ON_SURFACE_VARIANT,
                     ),
                 ],
-                spacing=10,
+                spacing=tokens.SPACE_SM + 2,
             ),
-            padding=ft.padding.symmetric(horizontal=16, vertical=10),
-            margin=ft.margin.only(right=60, bottom=8),
+            padding=ft.Padding.symmetric(
+                horizontal=tokens.SPACE_LG, vertical=tokens.SPACE_SM + 2
+            ),
+            margin=ft.Margin.only(
+                right=tokens.BUBBLE_INDENT, bottom=tokens.SPACE_SM
+            ),
         )

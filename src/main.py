@@ -5,14 +5,24 @@ Main entry point. Handles routing between views:
 - /chat   — Main chat interface
 - /history — Conversation history
 - /settings — User settings
+
+Flet v0.84.0 notes:
+- page.go() is deprecated (0.80.0) but is SYNC and works reliably.
+  page.push_route() is async and cannot be called from sync callbacks.
+  We use page.go() until the sync alternative is available.
+- page.shared_preferences is deprecated (0.80.0) but is the only
+  storage API that works in flet run dev mode. Handled in TokenManager.
 """
 
 from __future__ import annotations
 
 import logging
 import sys
+import warnings
 
 import flet as ft
+
+from theme import colors
 
 # Configure logging
 logging.basicConfig(
@@ -42,13 +52,29 @@ async def main(page: ft.Page):
         "Outfit": "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
     }
 
-    # Material 3 theme with Kiri Green (#00A859) and Gold (#FFD700)
+    # Material 3 theme with Kiri brand colours mapped to M3 roles
     page.theme = ft.Theme(
-        color_scheme_seed="#00A859",
+        color_scheme=ft.ColorScheme(
+            primary=colors.KIRI_GREEN,
+            on_primary=ft.Colors.WHITE,
+            primary_container=colors.KIRI_GREEN_DARK,
+            secondary=colors.KIRI_GOLD,
+            on_secondary=ft.Colors.BLACK,
+            tertiary=colors.KIRI_GOLD_DIM,
+            surface=ft.Colors.SURFACE,
+        ),
         font_family="Outfit",
     )
     page.dark_theme = ft.Theme(
-        color_scheme_seed="#00A859",
+        color_scheme=ft.ColorScheme(
+            primary=colors.KIRI_GREEN,
+            on_primary=ft.Colors.WHITE,
+            primary_container=colors.KIRI_GREEN_DARK,
+            secondary=colors.KIRI_GOLD,
+            on_secondary=ft.Colors.BLACK,
+            tertiary=colors.KIRI_GOLD_DIM,
+            surface=ft.Colors.SURFACE,
+        ),
         font_family="Outfit",
     )
 
@@ -73,7 +99,11 @@ async def main(page: ft.Page):
 
     # ── Navigation Helpers ──────────────────────────────────────────
     def navigate_to(route: str):
-        page.go(route)
+        # page.go() is sync and works reliably in all contexts.
+        # page.push_route() is async and cannot be called from sync callbacks.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            page.go(route)
 
     def on_login_success():
         navigate_to("/chat")

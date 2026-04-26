@@ -4,18 +4,26 @@ Uses the Google Generative Language API (same as AI Studio) with:
 - Primary: gemma-4-26b-a4b-it (MoE, faster)
 - Fallback: gemma-4-31b-it (Dense, more powerful)
 
-Adapted from the ResilientGemini pattern in notes-agent.
+Extends ``LLMProvider`` from ``providers.base``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
-from dataclasses import dataclass, field
 from typing import AsyncGenerator, Optional
 
 import httpx
+
+from providers.base import (
+    ChatMessage,
+    GenerationConfig,
+    GenerationResult,
+    LLMProvider,
+    MediaPart,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,35 +41,11 @@ _MAX_DELAY = 60.0
 _RETRY_STATUS_CODES = {429, 503, 500}
 
 
-@dataclass
-class GenerationConfig:
-    """Configuration for text generation."""
-
-    temperature: float = 0.7
-    top_p: float = 0.95
-    top_k: int = 40
-    max_output_tokens: int = 8192
+# Re-export for convenience
+ProviderResponse = GenerationResult
 
 
-@dataclass
-class ChatMessage:
-    """A single chat message."""
-
-    role: str  # "user" or "model"
-    content: str
-
-
-@dataclass
-class GenerationResult:
-    """Result from a generation call."""
-
-    content: str
-    model_used: str
-    finish_reason: str = "STOP"
-    usage: dict = field(default_factory=dict)
-
-
-class ResilientGemmaProvider:
+class ResilientGemmaProvider(LLMProvider):
     """Resilient provider with auto-fallback between Gemma 4 models.
 
     On any error from the primary model (rate limit, server error, etc.),
@@ -83,20 +67,29 @@ class ResilientGemmaProvider:
         self.system_instruction = system_instruction
         self._client = httpx.AsyncClient(timeout=120.0)
 
+    # ── Request building ────────────────────────────────────────────
     def _build_request_body(self, messages: list[ChatMessage]) -> dict:
         """Build the Gemini API request body from chat messages."""
         contents = []
         for msg in messages:
-            # Gemini API uses "user" and "model" roles
             role = "model" if msg.role in ("assistant", "model") else "user"
-            contents.append(
-                {
-                    "role": role,
-                    "parts": [{"text": msg.content}],
-                }
-            )
+            parts: list[dict] = [{"text": msg.content}]
 
-        body = {
+            # Multimodal: attach media if present
+            if msg.media:
+                for media in msg.media:
+                    parts.append(
+                        {
+                            "inline_data": {
+                                "mime_type": media.mime_type,
+                                "data": base64.b64encode(media.data).decode("ascii"),
+                            }
+                        }
+                    )
+
+            contents.append({"role": role, "parts": parts})
+
+        body: dict = {
             "contents": contents,
             "generationConfig": {
                 "temperature": self.config.temperature,
@@ -113,6 +106,7 @@ class ResilientGemmaProvider:
 
         return body
 
+    # ── Public API (LLMProvider) ────────────────────────────────────
     async def generate(self, messages: list[ChatMessage]) -> GenerationResult:
         """Generate a response, with automatic retry and fallback."""
         last_error = None
@@ -133,10 +127,7 @@ class ResilientGemmaProvider:
     async def generate_stream(
         self, messages: list[ChatMessage]
     ) -> AsyncGenerator[tuple[str, str], None]:
-        """Stream a response, yielding (chunk, model_used) tuples.
-
-        Falls back to the next model if streaming fails.
-        """
+        """Stream a response, yielding (chunk, model_used) tuples."""
         last_error = None
 
         for model_name in self.models:
@@ -154,7 +145,26 @@ class ResilientGemmaProvider:
         if last_error:
             raise last_error
 
-    async def _call_model(self, model: str, messages: list[ChatMessage]) -> GenerationResult:
+    async def validate_api_key(self) -> bool:
+        """Test the API key with a minimal request."""
+        try:
+            result = await self._call_model(
+                self.models[0],
+                [ChatMessage(role="user", content="Hi")],
+            )
+            return bool(result.content)
+        except Exception as e:
+            logger.error("API key validation failed: %s", e)
+            return False
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        await self._client.aclose()
+
+    # ── Internal ────────────────────────────────────────────────────
+    async def _call_model(
+        self, model: str, messages: list[ChatMessage]
+    ) -> GenerationResult:
         """Call a single model with retry logic."""
         url = f"{_API_BASE}/models/{model}:generateContent"
         body = self._build_request_body(messages)
@@ -186,12 +196,15 @@ class ResilientGemmaProvider:
                     delay = min(delay * 2, _MAX_DELAY)
                     continue
 
-                # Non-retryable error
                 error_text = response.text[:500]
-                raise RuntimeError(f"API error {response.status_code} from {model}: {error_text}")
+                raise RuntimeError(
+                    f"API error {response.status_code} from {model}: {error_text}"
+                )
 
             except httpx.TimeoutException:
-                logger.warning("Timeout calling %s (attempt %d/%d)", model, attempt, _MAX_RETRIES)
+                logger.warning(
+                    "Timeout calling %s (attempt %d/%d)", model, attempt, _MAX_RETRIES
+                )
                 if attempt < _MAX_RETRIES:
                     await asyncio.sleep(delay)
                     delay = min(delay * 2, _MAX_DELAY)
@@ -235,7 +248,9 @@ class ResilientGemmaProvider:
                             text += chunk
                             if len(text) > 500:
                                 break
-                        raise RuntimeError(f"Stream error {response.status_code}: {text[:500]}")
+                        raise RuntimeError(
+                            f"Stream error {response.status_code}: {text[:500]}"
+                        )
 
                     async for line in response.aiter_lines():
                         if not line.startswith("data: "):
@@ -247,14 +262,16 @@ class ResilientGemmaProvider:
                             data = json.loads(data_str)
                             candidates = data.get("candidates", [])
                             if candidates:
-                                parts = candidates[0].get("content", {}).get("parts", [])
+                                parts = (
+                                    candidates[0].get("content", {}).get("parts", [])
+                                )
                                 for part in parts:
                                     text = part.get("text", "")
                                     if text:
                                         yield text
                         except json.JSONDecodeError:
                             continue
-                    return  # Successful stream completion
+                    return  # Successful stream
 
             except httpx.TimeoutException:
                 if attempt < _MAX_RETRIES:
@@ -294,19 +311,3 @@ class ResilientGemmaProvider:
             finish_reason=finish_reason,
             usage=usage,
         )
-
-    async def validate_api_key(self) -> bool:
-        """Test the API key with a minimal request."""
-        try:
-            result = await self._call_model(
-                self.models[0],
-                [ChatMessage(role="user", content="Hi")],
-            )
-            return bool(result.content)
-        except Exception as e:
-            logger.error("API key validation failed: %s", e)
-            return False
-
-    async def close(self) -> None:
-        """Close the HTTP client."""
-        await self._client.aclose()

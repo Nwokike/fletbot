@@ -1,21 +1,34 @@
-"""Input bar component for the chat UI."""
+"""Input bar component for the chat UI.
+
+Uses design system tokens and wires camera, mic, and file attach buttons
+to the native service layer.
+"""
 
 from __future__ import annotations
 
+import logging
 from typing import Callable, Optional
 
 import flet as ft
 
+from theme import colors, tokens
+
+logger = logging.getLogger(__name__)
+
 
 class InputBar(ft.Container):
-    """Chat input bar with text field and send button.
+    """Chat input bar with text field, send button, and native action buttons.
 
     Supports submit on Enter, Shift+Enter for newline.
+    Camera, mic, and attach buttons are wired to real native services.
     """
 
     def __init__(
         self,
         on_send: Optional[Callable[[str], None]] = None,
+        on_camera: Optional[Callable[[], None]] = None,
+        on_mic: Optional[Callable[[], None]] = None,
+        on_attach: Optional[Callable[[], None]] = None,
         disabled: bool = False,
     ):
         self._on_send = on_send
@@ -23,7 +36,7 @@ class InputBar(ft.Container):
 
         self._text_field = ft.TextField(
             hint_text="Ask FletBot anything...",
-            border_radius=24,
+            border_radius=tokens.RADIUS_XXL,
             filled=True,
             dense=True,
             min_lines=1,
@@ -32,8 +45,10 @@ class InputBar(ft.Container):
             shift_enter=True,
             on_submit=self._handle_submit,
             expand=True,
-            text_size=15,
-            content_padding=ft.padding.symmetric(horizontal=16, vertical=10),
+            text_size=tokens.FONT_MD,
+            content_padding=ft.Padding.symmetric(
+                horizontal=tokens.SPACE_LG, vertical=tokens.SPACE_SM + 2
+            ),
             disabled=disabled,
         )
 
@@ -44,10 +59,10 @@ class InputBar(ft.Container):
             on_click=self._handle_click,
             disabled=disabled,
             tooltip="Send message",
-            icon_size=20,
+            icon_size=tokens.ICON_MD,
             style=ft.ButtonStyle(
                 shape=ft.CircleBorder(),
-                padding=10,
+                padding=tokens.SPACE_SM + 2,
             ),
         )
 
@@ -55,16 +70,22 @@ class InputBar(ft.Container):
             icon=ft.Icons.CAMERA_ALT_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
             tooltip="Take photo",
+            on_click=lambda _: on_camera() if on_camera else None,
+            icon_size=tokens.ICON_MD,
         )
         self._mic_btn = ft.IconButton(
             icon=ft.Icons.MIC_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
             tooltip="Record audio",
+            on_click=lambda _: on_mic() if on_mic else None,
+            icon_size=tokens.ICON_MD,
         )
         self._attach_btn = ft.IconButton(
             icon=ft.Icons.ATTACH_FILE_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
             tooltip="Attach document",
+            on_click=lambda _: on_attach() if on_attach else None,
+            icon_size=tokens.ICON_MD,
         )
 
         super().__init__(
@@ -74,16 +95,25 @@ class InputBar(ft.Container):
                     self._camera_btn,
                     self._mic_btn,
                     self._text_field,
-                    self._send_button
+                    self._send_button,
                 ],
-                spacing=4,
+                spacing=tokens.SPACE_XS,
                 vertical_alignment=ft.CrossAxisAlignment.END,
             ),
-            padding=ft.padding.only(left=8, right=8, top=12, bottom=12),
+            padding=ft.Padding.only(
+                left=tokens.SPACE_SM,
+                right=tokens.SPACE_SM,
+                top=tokens.INPUT_BAR_HEIGHT,
+                bottom=tokens.INPUT_BAR_HEIGHT,
+            ),
             bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.SURFACE),
-            blur=ft.Blur(20, 20, ft.BlurTileMode.MIRROR),
-            border_radius=ft.border_radius.only(top_left=24, top_right=24),
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
+            blur=ft.Blur(
+                tokens.BLUR_MD, tokens.BLUR_MD, ft.BlurTileMode.MIRROR
+            ),
+            border_radius=ft.BorderRadius.only(
+                top_left=tokens.RADIUS_XXL, top_right=tokens.RADIUS_XXL
+            ),
+            border=ft.Border.all(1, colors.GLASS_BORDER_COLOR),
         )
 
     def _handle_submit(self, e):
@@ -108,6 +138,18 @@ class InputBar(ft.Container):
         self._text_field.disabled = disabled
         self._send_button.disabled = disabled
         self.update()
+
+    def set_recording(self, recording: bool):
+        """Toggle the mic button appearance for recording state."""
+        if recording:
+            self._mic_btn.icon = ft.Icons.STOP_ROUNDED
+            self._mic_btn.icon_color = ft.Colors.ERROR
+            self._mic_btn.tooltip = "Stop recording"
+        else:
+            self._mic_btn.icon = ft.Icons.MIC_ROUNDED
+            self._mic_btn.icon_color = ft.Colors.ON_SURFACE_VARIANT
+            self._mic_btn.tooltip = "Record audio"
+        self._mic_btn.update()
 
     def focus(self):
         """Focus the text field."""
