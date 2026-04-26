@@ -111,10 +111,10 @@ def build_settings_view(
         ),
         setting_tile(
             ft.Icons.CODE_ROUNDED,
-            "Website",
-            "deepmind.google/gemma",
+            "GitHub",
+            "github.com/Nwokike/fletbot",
             on_click=lambda e: page.launch_url(
-                "https://deepmind.google/gemma"
+                "https://github.com/Nwokike/fletbot"
             ),
         ),
         ft.Container(height=tokens.SPACE_XL),

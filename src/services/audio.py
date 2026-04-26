@@ -88,12 +88,20 @@ class AudioService:
             self._recording = False
             logger.info("Audio recording stopped, saved to: %s", saved_path)
 
-            # stop_recording returns the file path as a string
-            file_path = Path(saved_path) if saved_path else self._output_path
+            # If saved_path is a blob URL (web), we can't read it from Python.
+            # We try to use our local _output_path instead.
+            file_path = self._output_path
+            if saved_path and not saved_path.startswith("blob:"):
+                file_path = Path(saved_path)
+                
+            logger.info("Attempting to read audio data from: %s", file_path)
             if file_path and file_path.exists():
                 data = file_path.read_bytes()
+                logger.info("Read %d bytes of audio data", len(data))
                 file_path.unlink(missing_ok=True)
                 return (data, "audio/wav")
+            else:
+                logger.error("Audio file not found at %s", file_path)
         except Exception as e:
             logger.error("Failed to stop recording: %s", e)
             self._recording = False

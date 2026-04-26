@@ -52,7 +52,7 @@ FletBot App
 │   ├── Runner (message → LLM → response)
 │   └── Session Manager (local JSON storage)
 └── Resilient Gemma Provider
-    ├── Official Link: [deepmind.google/gemma](https://deepmind.google/gemma)
+    ├── Official Link: [deepmind.google/models/gemma/gemma-4/](https://deepmind.google/models/gemma/gemma-4)
     └── Strategy: Multi-model fallback with exponential backoff
 
 ```

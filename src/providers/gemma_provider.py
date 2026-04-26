@@ -1,4 +1,4 @@
-"""Resilient Gemma 4 provider with multi-model fallback.
+"""Resilient Gemma 4 provider with automatic fallback.
 
 Uses DeepMind's Gemma 4 models via Google Generative Language API.
 
@@ -76,10 +76,15 @@ class ResilientGemmaProvider(LLMProvider):
             # Multimodal: attach media if present
             if msg.media:
                 for media in msg.media:
+                    mime = media.mime_type
+                    if mime == "application/octet-stream":
+                        # Safety fallback for the API
+                        mime = "text/plain"
+                        
                     parts.append(
                         {
                             "inline_data": {
-                                "mime_type": media.mime_type,
+                                "mime_type": mime,
                                 "data": base64.b64encode(media.data).decode("ascii"),
                             }
                         }

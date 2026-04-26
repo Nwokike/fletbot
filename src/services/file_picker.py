@@ -11,6 +11,7 @@ API verified against Flet v0.84.0:
 from __future__ import annotations
 
 import logging
+import mimetypes
 from typing import Callable, Optional
 
 import flet as ft
@@ -50,17 +51,17 @@ class FilePickerService:
                 file = result[0]
                 # We expect data to be present because with_data=True
                 if file.bytes:
-                    # Heuristic for mime-type based on extension if not provided
-                    mime = "application/octet-stream"
-                    ext = file.name.split(".")[-1].lower() if "." in file.name else ""
-                    if ext in ("jpg", "jpeg"):
-                        mime = "image/jpeg"
-                    elif ext == "png":
-                        mime = "image/png"
-                    elif ext == "pdf":
-                        mime = "application/pdf"
-                    elif ext == "txt":
-                        mime = "text/plain"
+                    # Improved mime-type detection
+                    mime, _ = mimetypes.guess_type(file.name)
+                    if not mime or mime == "application/octet-stream":
+                        # Secondary guess based on extension for common AI types
+                        ext = file.name.split(".")[-1].lower() if "." in file.name else ""
+                        if ext in ("json", "csv"):
+                            mime = f"text/{ext}"
+                        elif ext in ("py", "js", "html", "css"):
+                            mime = "text/plain"
+                        else:
+                            mime = "application/octet-stream"
 
                     self._on_result(file.bytes, mime, file.name)
                 else:
