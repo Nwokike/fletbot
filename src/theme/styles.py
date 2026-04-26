@@ -38,12 +38,13 @@ def glass_card(
 
 
 # ── Gradient Background ─────────────────────────────────────────────
-def brand_gradient_bg(content: ft.Control) -> ft.Container:
-    """Wrap *content* in the standard dark-brand gradient background."""
+def brand_gradient_bg(content: ft.Control, page: ft.Page | None = None) -> ft.Container:
+    """Wrap *content* in the standard brand gradient background."""
+    theme_mode = page.theme_mode if page else ft.ThemeMode.DARK
     return ft.Container(
         content=content,
         expand=True,
-        gradient=colors.brand_gradient(),
+        gradient=colors.brand_gradient(theme_mode),
     )
 
 

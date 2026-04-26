@@ -77,7 +77,11 @@ class ChatView:
         self._thinking = ThinkingIndicator()
         self._thinking.visible = False
 
+        from components.media_preview import MediaPreviewBar
+        self._media_preview = MediaPreviewBar(on_remove=self._on_media_remove)
+
         self._input_bar = InputBar(
+            page=self.page,
             on_send=self._on_send,
             on_camera=self._on_camera,
             on_mic=self._on_mic,
@@ -159,9 +163,24 @@ class ChatView:
 
     # ── Sending Messages ────────────────────────────────────────────
 
+    def _on_media_remove(self, part: MediaPart):
+        """Remove a pending media item."""
+        if self._pending_media and part in self._pending_media:
+            self._pending_media.remove(part)
+        self._update_media_preview()
+
+    def _update_media_preview(self):
+        """Refresh the media preview bar."""
+        if self._pending_media:
+            self._media_preview.set_media(self._pending_media)
+        else:
+            self._media_preview.set_media([])
+            
     def _on_send(self, text: str):
         """Handle user sending a message."""
-        if self._is_generating or not text:
+        # If there's no text and no media, ignore
+        has_media = bool(self._pending_media)
+        if self._is_generating or (not text and not has_media):
             return
 
         if not self.current_session:
@@ -172,12 +191,24 @@ class ChatView:
             self._message_list.controls.clear()
 
         # Add user message
-        self.current_session.add_message("user", text)
-        user_bubble = MessageBubble(role="user", content=text)
+        if text:
+            self.current_session.add_message("user", text)
+        
+        # Prepare media items before rendering message bubble
+        media_to_send = list(self._pending_media) if self._pending_media else []
+        self._pending_media.clear()
+        self._update_media_preview()
+
+        # Add user message to UI immediately
+        user_bubble = MessageBubble(
+            role="user", 
+            content=text if text else "",
+            media=media_to_send
+        )
         self._message_list.controls.append(user_bubble)
         self._message_count_since_ad += 1
-
-        # Show thinking indicator
+        
+        # Show thinking indicator and disable input
         self._thinking.visible = True
         self._message_list.controls.append(self._thinking)
         self._input_bar.set_disabled(True)
@@ -185,8 +216,7 @@ class ChatView:
         self.page.update()
 
         # Capture and clear pending media
-        media = self._pending_media
-        self._pending_media = None
+        media = media_to_send
 
         self.page.run_task(self._generate_response, text, media)
 
@@ -267,30 +297,39 @@ class ChatView:
         perm = PermissionService(self.page)
         if not await perm.request_camera():
             return
-        result = await self._camera.capture_photo()
-        if result:
-            data, mime = result
-            self._pending_media = [MediaPart(mime_type=mime, data=data)]
-            self.page.show_dialog(
-                ft.SnackBar(content=ft.Text("📷 Photo attached — type your message"))
-            )
+            
+        from components.camera_viewfinder import CameraViewfinder
+        
+        def on_capture(data: bytes, mime: str, filename: str):
+            if not self._pending_media:
+                self._pending_media = []
+            self._pending_media.append(MediaPart(mime_type=mime, data=data, filename=filename))
+            self._update_media_preview()
 
-    def _on_mic(self):
+        def on_close():
+            if viewfinder in self.page.overlay:
+                self.page.overlay.remove(viewfinder)
+                self.page.update()
+
+        viewfinder = CameraViewfinder(self.page, on_capture, on_close)
+        self.page.overlay.append(viewfinder)
+        self.page.update()
+        await viewfinder.initialize()
+
+    def _on_mic(self, stopped: bool = False):
         """Handle mic button tap — toggle recording."""
-        self.page.run_task(self._toggle_recording)
+        self.page.run_task(self._toggle_recording, stopped)
 
-    async def _toggle_recording(self):
-        if self._audio.is_recording:
+    async def _toggle_recording(self, stopped: bool = False):
+        if self._audio.is_recording or stopped:
             result = await self._audio.stop_recording()
             self._input_bar.set_recording(False)
             if result:
                 data, mime = result
-                self._pending_media = [MediaPart(mime_type=mime, data=data)]
-                self.page.show_dialog(
-                    ft.SnackBar(
-                        content=ft.Text("🎤 Recording attached — type your message")
-                    )
-                )
+                if not self._pending_media:
+                    self._pending_media = []
+                self._pending_media.append(MediaPart(mime_type=mime, data=data, filename="Voice Note.m4a"))
+                self._update_media_preview()
         else:
             from services import PermissionService
             perm = PermissionService(self.page)
@@ -302,16 +341,27 @@ class ChatView:
 
     def _on_attach(self):
         """Handle attach button tap."""
-        self._file_picker.pick_file()
+        allowed_extensions = [
+            # Images
+            "png", "jpg", "jpeg", "webp", "bmp", "gif", "heic", "heif",
+            # Audio
+            "wav", "mp3", "aac", "flac", "ogg", "m4a", "mpeg", "opus", "pcm", "aiff",
+            # Video
+            "mp4", "mpeg", "mpg", "mov", "avi", "webm", "flv", "3gp", "wmv",
+            # Documents & Code
+            "pdf", "txt", "md", "html", "css", "xml", "csv", "rtf", "js", "json",
+            "py", "java", "cpp", "c", "h", "go", "rs", "swift", "kt", "ts", "sh",
+        ]
+        self._file_picker.pick_file(allowed_extensions=allowed_extensions)
 
     def _on_file_picked(self, data: bytes, mime: str, filename: str):
         """Callback when a file is picked."""
-        self._pending_media = [
+        if not self._pending_media:
+            self._pending_media = []
+        self._pending_media.append(
             MediaPart(mime_type=mime, data=data, filename=filename)
-        ]
-        self.page.show_dialog(
-            ft.SnackBar(content=ft.Text(f"📎 {filename} attached — type your message"))
         )
+        self._update_media_preview()
 
     # ── Clipboard / Share ───────────────────────────────────────────
 
@@ -376,14 +426,26 @@ class ChatView:
         if not self.current_session:
             self.new_chat()
 
-        view_controls: list[ft.Control] = [self._message_list, self._input_bar]
+        view_controls: list[ft.Control] = [self._message_list]
 
         gradient_bg = brand_gradient_bg(
             ft.Column(
-                controls=view_controls,
+                controls=[
+                    self._message_list,
+                    self._media_preview,
+                    ft.Container(
+                        content=self._input_bar,
+                        padding=ft.Padding.only(
+                            left=tokens.SPACE_XS,
+                            right=tokens.SPACE_XS,
+                            bottom=tokens.SPACE_XS,
+                        ),
+                    ),
+                ],
                 spacing=0,
                 expand=True,
-            )
+            ),
+            page=self.page,
         )
 
         view = ft.View(

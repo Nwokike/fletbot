@@ -1,8 +1,6 @@
-"""Resilient Gemma 4 provider with automatic fallback.
+"""Resilient Gemma 4 provider with multi-model fallback.
 
-Uses the Google Generative Language API (same as AI Studio) with:
-- Primary: gemma-4-26b-a4b-it (MoE, faster)
-- Fallback: gemma-4-31b-it (Dense, more powerful)
+Uses DeepMind's Gemma 4 models via Google Generative Language API.
 
 Extends ``LLMProvider`` from ``providers.base``.
 """
@@ -31,8 +29,9 @@ logger = logging.getLogger(__name__)
 _API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 # Default models
-PRIMARY_MODEL = "gemma-4-26b-a4b-it"
-FALLBACK_MODEL = "gemma-4-31b-it"
+PRIMARY_MODEL = "gemma-4-31b-it"
+SECONDARY_MODEL = "gemma-4-26b-a4b-it"
+TERTIARY_MODEL = "gemini-3.1-flash-lite-preview"
 
 # Retry config
 _MAX_RETRIES = 5
@@ -56,13 +55,12 @@ class ResilientGemmaProvider(LLMProvider):
     def __init__(
         self,
         api_key: str,
-        primary_model: str = PRIMARY_MODEL,
-        fallback_model: str = FALLBACK_MODEL,
+        models: list[str] = [PRIMARY_MODEL, SECONDARY_MODEL, TERTIARY_MODEL],
         generation_config: Optional[GenerationConfig] = None,
         system_instruction: Optional[str] = None,
     ):
         self.api_key = api_key
-        self.models = [primary_model, fallback_model]
+        self.models = models
         self.config = generation_config or GenerationConfig()
         self.system_instruction = system_instruction
         self._client = httpx.AsyncClient(timeout=120.0)
@@ -133,7 +131,7 @@ class ResilientGemmaProvider(LLMProvider):
         for model_name in self.models:
             try:
                 async for chunk in self._stream_model(model_name, messages):
-                    yield (chunk, model_name)
+                    yield (chunk, "Gemma 4")
                 return
             except Exception as e:
                 logger.error("Streaming from %s failed: %s", model_name, e)
@@ -181,7 +179,7 @@ class ResilientGemmaProvider(LLMProvider):
 
                 if response.status_code == 200:
                     data = response.json()
-                    return self._parse_response(data, model)
+                    return self._parse_response(data, "Gemma 4")
 
                 if response.status_code in _RETRY_STATUS_CODES:
                     logger.warning(

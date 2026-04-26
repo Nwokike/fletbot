@@ -174,7 +174,8 @@ def build_login_view(
             content=card,
             alignment=ft.Alignment.CENTER,
             expand=True,
-        )
+        ),
+        page=page,
     )
 
     view = ft.View(

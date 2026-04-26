@@ -70,18 +70,6 @@ def build_settings_view(
         on_logout()
 
     controls = [
-        # AI Model section
-        section_header("AI MODEL"),
-        setting_tile(
-            ft.Icons.AUTO_AWESOME_ROUNDED,
-            "Primary Model",
-            "Gemma 4 26B (MoE) — Fast & efficient",
-        ),
-        setting_tile(
-            ft.Icons.BACKUP_ROUNDED,
-            "Fallback Model",
-            "Gemma 4 31B (Dense) — Maximum quality",
-        ),
         # Appearance section
         section_header("APPEARANCE"),
         setting_tile(
@@ -123,10 +111,10 @@ def build_settings_view(
         ),
         setting_tile(
             ft.Icons.CODE_ROUNDED,
-            "GitHub",
-            "github.com/Nwokike/fletbot",
+            "Website",
+            "deepmind.google/gemma",
             on_click=lambda e: page.launch_url(
-                "https://github.com/Nwokike/fletbot"
+                "https://deepmind.google/gemma"
             ),
         ),
         ft.Container(height=tokens.SPACE_XL),
@@ -158,7 +146,8 @@ def build_settings_view(
             controls=controls,
             expand=True,
             padding=ft.Padding.symmetric(horizontal=tokens.SPACE_XS),
-        )
+        ),
+        page=page,
     )
 
     view = ft.View(

@@ -20,6 +20,11 @@ BG_DARK_1 = "#0B1914"  # Deep forest
 BG_DARK_2 = "#050A08"  # Near-black
 BG_DARK_3 = "#1A1400"  # Dark gold tint
 
+# ── Background gradient stops (light mode) ──────────────────────────
+BG_LIGHT_1 = "#E8F5E9"  # Very light green
+BG_LIGHT_2 = "#F1F8E9"  # Light yellow-green
+BG_LIGHT_3 = "#FAFAFA"  # Off-white
+
 # ── Glassmorphism ───────────────────────────────────────────────────
 GLASS_BG_OPACITY = 0.05
 GLASS_BORDER_OPACITY = 0.10
@@ -34,12 +39,16 @@ SHADOW_DARK = ft.Colors.with_opacity(0.10, ft.Colors.BLACK)
 USER_BUBBLE_COLORS = [KIRI_GREEN, KIRI_GREEN_DARK]
 
 # ── Reusable gradient objects ───────────────────────────────────────
-def brand_gradient() -> ft.LinearGradient:
-    """The standard dark background gradient used on all views."""
+def brand_gradient(theme_mode: ft.ThemeMode | str = ft.ThemeMode.DARK) -> ft.LinearGradient:
+    """The standard background gradient used on all views."""
+    # Handle both enum and string representation
+    is_dark = str(theme_mode).lower().endswith("dark")
+    
+    colors = [BG_DARK_1, BG_DARK_2, BG_DARK_3] if is_dark else [BG_LIGHT_1, BG_LIGHT_2, BG_LIGHT_3]
     return ft.LinearGradient(
         begin=ft.Alignment.TOP_LEFT,
         end=ft.Alignment.BOTTOM_RIGHT,
-        colors=[BG_DARK_1, BG_DARK_2, BG_DARK_3],
+        colors=colors,
     )
 
 

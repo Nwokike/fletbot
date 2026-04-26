@@ -7,7 +7,7 @@
 ## Features
 
 - 💬 **Chat with Gemma 4** — Free, powerful AI via Google AI Studio
-- 🔄 **Resilient** — Auto-fallback between Gemma 4 26B (MoE) and 31B (Dense)
+- 🔄 **Resilient** — Auto-fallback between DeepMind's Gemma 4 models
 - 🎨 **Beautiful UI** — Material 3 design with dark/light theme
 - 📱 **Cross-platform** — Android (APK) and Desktop (Windows/macOS/Linux)
 - 💰 **Ad-supported** — AdMob integration for monetization
@@ -36,8 +36,8 @@ flet build apk
 4. Paste it into FletBot's login screen
 
 Every free Google account gets:
-- **Gemma 4 26B**: 15 RPM, Unlimited TPM, 1,500 RPD
-- **Gemma 4 31B**: 15 RPM, Unlimited TPM, 1,500 RPD
+- **Gemma 4**: Free high-speed AI via DeepMind and Google AI Studio
+
 
 ## Architecture
 
@@ -52,9 +52,9 @@ FletBot App
 │   ├── Runner (message → LLM → response)
 │   └── Session Manager (local JSON storage)
 └── Resilient Gemma Provider
-    ├── Primary: gemma-4-26b-a4b-it
-    ├── Fallback: gemma-4-31b-it
-    └── Retry: exponential backoff on 429/503
+    ├── Official Link: [deepmind.google/gemma](https://deepmind.google/gemma)
+    └── Strategy: Multi-model fallback with exponential backoff
+
 ```
 
 ## License

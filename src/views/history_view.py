@@ -169,7 +169,7 @@ def build_history_view(
         transparent=True,
     )
 
-    gradient_bg = brand_gradient_bg(content)
+    gradient_bg = brand_gradient_bg(content, page=page)
 
     view = ft.View(
         route="/history",

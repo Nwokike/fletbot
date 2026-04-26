@@ -25,12 +25,14 @@ class InputBar(ft.Container):
 
     def __init__(
         self,
+        page: ft.Page,
         on_send: Optional[Callable[[str], None]] = None,
         on_camera: Optional[Callable[[], None]] = None,
         on_mic: Optional[Callable[[], None]] = None,
         on_attach: Optional[Callable[[], None]] = None,
         disabled: bool = False,
     ):
+        self._page = page
         self._on_send = on_send
         self._disabled = disabled
 
@@ -69,7 +71,7 @@ class InputBar(ft.Container):
         self._camera_btn = ft.IconButton(
             icon=ft.Icons.CAMERA_ALT_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
-            tooltip="Take photo",
+            tooltip="Use Camera (Photo/Video)",
             on_click=lambda _: on_camera() if on_camera else None,
             icon_size=tokens.ICON_MD,
         )
@@ -88,17 +90,34 @@ class InputBar(ft.Container):
             icon_size=tokens.ICON_MD,
         )
 
+        from components.recording_indicator import RecordingIndicator
+
+        self._normal_input = ft.Row(
+            controls=[
+                self._attach_btn,
+                self._camera_btn,
+                self._mic_btn,
+                self._text_field,
+                self._send_button,
+            ],
+            spacing=tokens.SPACE_XS,
+            vertical_alignment=ft.CrossAxisAlignment.END,
+        )
+
+        def _handle_stop_recording():
+            self.set_recording(False)
+            if on_mic:
+                # Signal stop
+                on_mic(stopped=True)
+                
+        self._recording_indicator = RecordingIndicator(page=self._page, on_stop=_handle_stop_recording, max_duration=300)
+
         super().__init__(
-            content=ft.Row(
+            content=ft.Stack(
                 controls=[
-                    self._attach_btn,
-                    self._camera_btn,
-                    self._mic_btn,
-                    self._text_field,
-                    self._send_button,
-                ],
-                spacing=tokens.SPACE_XS,
-                vertical_alignment=ft.CrossAxisAlignment.END,
+                    self._normal_input,
+                    self._recording_indicator,
+                ]
             ),
             padding=ft.Padding.only(
                 left=tokens.SPACE_SM,
@@ -125,10 +144,10 @@ class InputBar(ft.Container):
         self._send_current()
 
     def _send_current(self):
-        """Send the current text if not empty."""
+        """Send the current text if not empty (or if media is attached, handled upstream)."""
         text = self._text_field.value
-        if text and text.strip() and self._on_send:
-            self._on_send(text.strip())
+        if self._on_send:
+            self._on_send(text.strip() if text else "")
             self._text_field.value = ""
             self._text_field.update()
 
@@ -140,16 +159,14 @@ class InputBar(ft.Container):
         self.update()
 
     def set_recording(self, recording: bool):
-        """Toggle the mic button appearance for recording state."""
+        """Toggle between text input and recording UI."""
         if recording:
-            self._mic_btn.icon = ft.Icons.STOP_ROUNDED
-            self._mic_btn.icon_color = ft.Colors.ERROR
-            self._mic_btn.tooltip = "Stop recording"
+            self._normal_input.visible = False
+            self._recording_indicator.start()
         else:
-            self._mic_btn.icon = ft.Icons.MIC_ROUNDED
-            self._mic_btn.icon_color = ft.Colors.ON_SURFACE_VARIANT
-            self._mic_btn.tooltip = "Record audio"
-        self._mic_btn.update()
+            self._recording_indicator.stop()
+            self._normal_input.visible = True
+        self.update()
 
     def focus(self):
         """Focus the text field."""

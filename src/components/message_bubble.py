@@ -6,11 +6,12 @@ Uses design system tokens for all visual styling.
 from __future__ import annotations
 
 import flet as ft
+import base64
 
 from components.markdown_renderer import MarkdownRenderer
 from theme import colors, tokens
 from theme.styles import dark_shadow, primary_shadow
-
+from providers.base import MediaPart
 
 class MessageBubble(ft.Container):
     """A chat message bubble.
@@ -19,7 +20,7 @@ class MessageBubble(ft.Container):
     AI messages: left-aligned, glassmorphic, rendered as markdown.
     """
 
-    def __init__(self, role: str, content: str, on_copy=None, on_share=None, **kwargs):
+    def __init__(self, role: str, content: str, on_copy=None, on_share=None, media: list[MediaPart] | None = None, **kwargs):
         self._role = role
         self._content = content
 
@@ -46,6 +47,47 @@ class MessageBubble(ft.Container):
             ),
         )
 
+        bubble_controls: list[ft.Control] = [role_label]
+
+        # Render Media if provided
+        if media:
+            media_controls = []
+            for item in media:
+                if item.mime_type.startswith("image/"):
+                    b64_data = base64.b64encode(item.data).decode("utf-8")
+                    media_controls.append(
+                        ft.Container(
+                            content=ft.Image(
+                                src=f"data:{item.mime_type};base64,{b64_data}",
+                                fit=ft.BoxFit.CONTAIN,
+                            ),
+                            border_radius=tokens.RADIUS_MD,
+                            clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                            height=150,
+                        )
+                    )
+                else:
+                    icon = ft.Icons.MIC if item.mime_type.startswith("audio/") else ft.Icons.INSERT_DRIVE_FILE
+                    if item.mime_type.startswith("video/"):
+                        icon = ft.Icons.VIDEOCAM
+                    filename = item.filename or ("Voice Note" if item.mime_type.startswith("audio/") else "Attachment")
+                    media_controls.append(
+                        ft.Container(
+                            content=ft.Row([
+                                ft.Icon(icon, size=16, color=ft.Colors.ON_SURFACE_VARIANT if not is_user else ft.Colors.ON_PRIMARY),
+                                ft.Text(filename, size=12, color=ft.Colors.ON_SURFACE_VARIANT if not is_user else ft.Colors.ON_PRIMARY)
+                            ], tight=True),
+                            padding=tokens.SPACE_XS,
+                            bgcolor=ft.Colors.SURFACE_VARIANT if not is_user else "#33FFFFFF",
+                            border_radius=tokens.RADIUS_SM,
+                        )
+                    )
+            if media_controls:
+                bubble_controls.append(ft.Column(controls=media_controls, spacing=tokens.SPACE_XS))
+
+        if content:
+            bubble_controls.append(display)
+
         # Action buttons for AI messages
         action_row: list[ft.Control] = []
         if not is_user and content:
@@ -70,7 +112,6 @@ class MessageBubble(ft.Container):
                     )
                 )
 
-        bubble_controls: list[ft.Control] = [role_label, display]
         if action_row:
             bubble_controls.append(
                 ft.Row(
