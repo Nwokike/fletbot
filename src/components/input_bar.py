@@ -61,7 +61,7 @@ class InputBar(ft.Container):
             ),
             disabled=disabled,
             max_length=4000,
-            counter_text="", # Hide default counter
+            counter=ft.Container(), # Hide default counter
         )
 
         self._send_button = ft.IconButton(
