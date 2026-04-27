@@ -60,7 +60,7 @@ class ChatView:
         self._file_picker = FilePickerService(page, on_result=self._on_file_picked)
 
         # Pending media attachment
-        self._pending_media: list[MediaPart] | None = None
+        self._pending_media: list[MediaPart] = []
 
         # Current session
         self.current_session: Optional[Session] = None
@@ -177,7 +177,7 @@ class ChatView:
 
     def _on_media_remove(self, part: MediaPart):
         """Remove a pending media item."""
-        if self._pending_media and part in self._pending_media:
+        if part in self._pending_media:
             self._pending_media.remove(part)
         self._update_media_preview()
 
@@ -207,7 +207,7 @@ class ChatView:
             self.current_session.add_message("user", text)
         
         # Prepare media items before rendering message bubble
-        media_to_send = list(self._pending_media) if self._pending_media else []
+        media_to_send = list(self._pending_media)
         self._pending_media.clear()
         self._update_media_preview()
 
@@ -314,8 +314,6 @@ class ChatView:
         from src.components.camera_viewfinder import CameraViewfinder
         
         def on_capture(data: bytes, mime: str, filename: str):
-            if not self._pending_media:
-                self._pending_media = []
             self._pending_media.append(MediaPart(mime_type=mime, data=data, filename=filename))
             self._update_media_preview()
 
@@ -339,8 +337,6 @@ class ChatView:
             self._input_bar.set_recording(False)
             if result:
                 data, mime = result
-                if not self._pending_media:
-                    self._pending_media = []
                 self._pending_media.append(MediaPart(mime_type=mime, data=data, filename="Voice Note.m4a"))
                 self._update_media_preview()
         else:
@@ -367,8 +363,6 @@ class ChatView:
 
     def _on_file_picked(self, data: bytes, mime: str, filename: str):
         """Callback when a file is picked."""
-        if not self._pending_media:
-            self._pending_media = []
         self._pending_media.append(
             MediaPart(mime_type=mime, data=data, filename=filename)
         )
