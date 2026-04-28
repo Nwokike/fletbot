@@ -8,6 +8,7 @@ build/
 *.egg
 .venv/
 venv/
+scratch/
 
 # Flet
 .flet/
@@ -28,10 +29,5 @@ desktop.ini
 .env
 .env.local
 
-# Storage (user data)
-storage/data/*.json
-storage/temp/*
-
-# Keep storage dirs
-!storage/data/.gitkeep
-!storage/temp/.gitkeep
+# Storage 
+storage/
