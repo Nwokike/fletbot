@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Optional
 
 
 @dataclass
@@ -74,7 +74,7 @@ class LLMProvider(abc.ABC):
     """Abstract base class for all LLM providers."""
 
     @abc.abstractmethod
-    async def generate(self, messages: list[ChatMessage]) -> GenerationResult:
+    async def generate(self, messages: list[ChatMessage], tools: list[dict] | None = None) -> GenerationResult:
         """Generate a complete response."""
 
     @abc.abstractmethod
