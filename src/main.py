@@ -1,7 +1,7 @@
 """FletBot — Consumer AI assistant powered by Gemma 4.
 
 Main entry point. Handles routing between views:
-- /login  — API key entry
+- /login  — Auth entry (OAuth or Manual API key)
 - /chat   — Main chat interface
 - /history — Conversation history
 - /settings — User settings
@@ -10,8 +10,6 @@ Flet v0.84.0 notes:
 - page.go() is deprecated (0.80.0) but is SYNC and works reliably.
   page.push_route() is async and cannot be called from sync callbacks.
   We use page.go() until the sync alternative is available.
-- page.shared_preferences is deprecated (0.80.0) but is the only
-  storage API that works in flet run dev mode. Handled in TokenManager.
 """
 
 from __future__ import annotations
@@ -100,7 +98,6 @@ async def main(page: ft.Page):
     # ── Navigation Helpers ──────────────────────────────────────────
     def navigate_to(route: str):
         # page.go() is sync and works reliably in all contexts.
-        # page.push_route() is async and cannot be called from sync callbacks.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             page.go(route)
@@ -108,8 +105,29 @@ async def main(page: ft.Page):
     def on_login_success():
         navigate_to("/chat")
 
-    def on_logout():
+    async def on_logout():
+        await token_manager.clear_api_key()
+        await token_manager.clear_oauth_token()
+        try:
+            page.logout()
+        except Exception as e:
+            logger.warning("Flet logout exception: %s", e)
         navigate_to("/login")
+
+    # ── OAuth Login Handler ─────────────────────────────────────────
+    def on_login(e: ft.LoginEvent):
+        """Intercept successful Google Sign-in and save the token securely."""
+        if not e.error:
+            if page.auth and page.auth.token:
+                # Run the async save inside a task
+                async def save_token():
+                    await token_manager.save_oauth_token(page.auth.token.access_token)
+                    on_login_success()
+                page.run_task(save_token)
+        else:
+            logger.error("OAuth login failed: %s", e.error_description)
+
+    page.on_login = on_login
 
     # ── Route Change Handler ────────────────────────────────────────
     async def route_change(e: ft.RouteChangeEvent | None = None):
@@ -133,7 +151,9 @@ async def main(page: ft.Page):
 
         elif route == "/chat":
             api_key = await token_manager.get_api_key()
-            if not api_key:
+            oauth_token = await token_manager.get_oauth_token()
+
+            if not api_key and not oauth_token:
                 page.views.clear()
                 from src.views.login_view import build_login_view
 
@@ -148,12 +168,17 @@ async def main(page: ft.Page):
                 return
 
             # Create or reuse chat view instance
-            if chat_view_instance is None or chat_view_instance.api_key != api_key:
+            if (
+                chat_view_instance is None 
+                or chat_view_instance.api_key != api_key 
+                or getattr(chat_view_instance, 'oauth_token', None) != oauth_token
+            ):
                 from src.views.chat_view import ChatView
 
                 chat_view_instance = ChatView(
                     page=page,
                     api_key=api_key,
+                    oauth_token=oauth_token,
                     session_manager=session_manager,
                     on_navigate=navigate_to,
                 )
@@ -182,11 +207,14 @@ async def main(page: ft.Page):
         elif route == "/settings":
             from src.views.settings_view import build_settings_view
 
+            def sync_logout():
+                page.run_task(on_logout)
+
             view = await build_settings_view(
                 page=page,
                 token_manager=token_manager,
                 on_back=lambda: navigate_to("/chat"),
-                on_logout=on_logout,
+                on_logout=sync_logout,
             )
             # Keep chat view underneath for back navigation
             if chat_view_instance:
@@ -196,7 +224,8 @@ async def main(page: ft.Page):
         else:
             # Unknown route — go to chat or login
             has_key = await token_manager.has_api_key()
-            navigate_to("/chat" if has_key else "/login")
+            has_oauth = await token_manager.has_oauth_token()
+            navigate_to("/chat" if has_key or has_oauth else "/login")
             return
 
         page.update()
@@ -215,7 +244,8 @@ async def main(page: ft.Page):
 
     # ── Initial Route ───────────────────────────────────────────────
     has_key = await token_manager.has_api_key()
-    if has_key:
+    has_oauth = await token_manager.has_oauth_token()
+    if has_key or has_oauth:
         page.route = "/chat"
     else:
         page.route = "/login"
