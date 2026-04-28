@@ -30,7 +30,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"
@@ -44,12 +43,19 @@ ignore = ["E501"]
 permissions = ["camera", "microphone"]
 
 [tool.flet.android.meta_data]
+# TODO: For Production, replace this Test Application ID with your real Google AdMob App ID
 "com.google.android.gms.ads.APPLICATION_ID" = "ca-app-pub-3940256099942544~3347511713"
 
 [tool.flet.android.permission]
 "android.permission.CAMERA" = true
 "android.permission.RECORD_AUDIO" = true
 "android.permission.WRITE_EXTERNAL_STORAGE" = true
+
+# ── OAuth Intent Filter (Crucial for Android Google Sign-In without a backend) ────────
+[[tool.flet.android.intent_filters]]
+action = "android.intent.action.VIEW"
+category = ["android.intent.category.DEFAULT", "android.intent.category.BROWSABLE"]
+data = { scheme = "fletbot", host = "oauth_callback" }
 
 [tool.flet.ios.info]
 NSCameraUsageDescription = "FletBot uses the camera to capture images for AI analysis"
@@ -62,4 +68,3 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "ruff>=0.15.12",
 ]
-
